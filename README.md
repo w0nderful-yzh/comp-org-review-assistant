@@ -59,4 +59,12 @@ http://localhost:5173
 The app includes:
 
 - `知识库`: inspect parsed review-note knowledge points and search chapter chunks.
-- `题库维护`: filter, review, and edit imported questions.
+- `题库维护`: filter, review, edit imported questions, and mark sources like `作业原题` or `AI生成`.
+
+## AI Question Generation
+
+Server-side AI generation should create teacher-reviewed drafts instead of publishing directly to students. See:
+
+```text
+docs/ai-question-generation.md
+```

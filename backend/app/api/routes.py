@@ -32,6 +32,50 @@ from app.services.grading import grade_answer, public_answer
 router = APIRouter(prefix="/api")
 
 
+def question_source_type(question: Question) -> str:
+    if question.is_ai_generated:
+        return "ai"
+    context = (question.source_context or "").lower()
+    assignment = question.source_assignment or ""
+    if "homework-examples" in context or "作业" in assignment:
+        return "homework"
+    if "phase-1 sample seed" in context:
+        return "sample"
+    return "manual"
+
+
+def question_source_label(question: Question) -> str:
+    labels = {
+        "ai": "AI生成",
+        "homework": "作业原题",
+        "sample": "样例题",
+        "manual": "人工维护",
+    }
+    return labels[question_source_type(question)]
+
+
+def source_type_conditions(source_type: str):
+    homework_condition = or_(
+        Question.source_context.ilike("%homework-examples%"),
+        Question.source_assignment.ilike("%作业%"),
+    )
+    sample_condition = Question.source_context.ilike("%phase-1 sample seed%")
+    if source_type == "ai":
+        return Question.is_ai_generated.is_(True)
+    if source_type == "homework":
+        return and_(Question.is_ai_generated.is_(False), homework_condition)
+    if source_type == "sample":
+        return and_(Question.is_ai_generated.is_(False), sample_condition)
+    if source_type == "manual":
+        return and_(
+            Question.is_ai_generated.is_(False),
+            or_(Question.source_context.is_(None), ~Question.source_context.ilike("%phase-1 sample seed%")),
+            or_(Question.source_context.is_(None), ~Question.source_context.ilike("%homework-examples%")),
+            or_(Question.source_assignment.is_(None), ~Question.source_assignment.ilike("%作业%")),
+        )
+    return None
+
+
 def question_out(question: Question) -> QuestionOut:
     blank_count = 0
     if question.type in {"fill_blank", "cloze"} and isinstance(question.answer_json, dict):
@@ -44,6 +88,8 @@ def question_out(question: Question) -> QuestionOut:
         stem=question.stem,
         options=question.options_json,
         blank_count=blank_count,
+        source_type=question_source_type(question),
+        source_label=question_source_label(question),
         explanation=question.explanation,
     )
 
@@ -221,6 +267,7 @@ def list_questions(
 def admin_list_questions(
     chapter_id: int | None = None,
     question_type: str | None = None,
+    source_type: str | None = None,
     reviewed: bool | None = None,
     keyword: str | None = None,
     limit: int = 30,
@@ -234,6 +281,11 @@ def admin_list_questions(
         conditions.append(Question.chapter_id == chapter_id)
     if question_type:
         conditions.append(Question.type == question_type)
+    if source_type:
+        source_condition = source_type_conditions(source_type)
+        if source_condition is None:
+            raise HTTPException(status_code=400, detail="Unsupported source_type")
+        conditions.append(source_condition)
     if reviewed is not None:
         conditions.append(Question.is_reviewed.is_(reviewed))
     if keyword:

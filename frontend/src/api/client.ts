@@ -15,6 +15,8 @@ export type Question = {
   stem: string;
   options: Array<{ key: string; text: string }>;
   blank_count: number;
+  source_type: "homework" | "ai" | "sample" | "manual";
+  source_label: string;
   explanation?: string | null;
 };
 
@@ -149,6 +151,7 @@ export const api = {
   adminQuestions: (params: {
     chapter_id?: number | null;
     question_type?: QuestionType | "";
+    source_type?: "" | "homework" | "ai" | "sample" | "manual";
     reviewed?: boolean | "";
     keyword?: string;
     limit?: number;
@@ -157,6 +160,7 @@ export const api = {
     const search = new URLSearchParams();
     if (params.chapter_id) search.set("chapter_id", String(params.chapter_id));
     if (params.question_type) search.set("question_type", params.question_type);
+    if (params.source_type) search.set("source_type", params.source_type);
     if (params.reviewed !== "") search.set("reviewed", String(params.reviewed));
     if (params.keyword) search.set("keyword", params.keyword);
     search.set("limit", String(params.limit ?? 30));
@@ -174,6 +178,7 @@ export const api = {
       answer_json: unknown;
       rubric_json: unknown;
       explanation: string | null;
+      is_ai_generated: boolean;
       is_reviewed: boolean;
     }>,
   ) =>

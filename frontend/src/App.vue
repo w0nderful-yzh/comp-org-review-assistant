@@ -139,6 +139,7 @@
               <div class="question-meta">
                 <span>{{ index + 1 }}</span>
                 <small>{{ typeLabel(question.type) }} · {{ difficultyLabel(question.difficulty) }}</small>
+                <b class="source-chip" :class="sourceTagClass(question.source_type)">{{ question.source_label }}</b>
               </div>
               <p class="stem">{{ question.stem }}</p>
 
@@ -225,6 +226,7 @@
           <div class="question-meta">
             <span>{{ item.wrong_count }}</span>
             <small>{{ typeLabel(item.question.type) }}</small>
+            <b class="source-chip" :class="sourceTagClass(item.question.source_type)">{{ item.question.source_label }}</b>
           </div>
           <p class="stem">{{ item.question.stem }}</p>
           <p class="muted">参考答案：{{ formatAnswer(item.question.answer) }}</p>
@@ -272,6 +274,16 @@
               </select>
             </label>
             <label>
+              <span>来源</span>
+              <select v-model="adminSourceType">
+                <option value="">全部来源</option>
+                <option value="homework">作业原题</option>
+                <option value="ai">AI生成</option>
+                <option value="sample">样例题</option>
+                <option value="manual">人工维护</option>
+              </select>
+            </label>
+            <label>
               <span>关键词</span>
               <input v-model="adminKeyword" placeholder="题干搜索" @keyup.enter="loadAdminQuestions" />
             </label>
@@ -290,7 +302,10 @@
               :class="{ selected: editingQuestion?.id === question.id }"
               @click="selectAdminQuestion(question)"
             >
-              <span>{{ typeLabel(question.type) }}</span>
+              <div class="row-tags">
+                <span>{{ typeLabel(question.type) }}</span>
+                <b class="source-chip" :class="sourceTagClass(question.source_type)">{{ question.source_label }}</b>
+              </div>
               <strong>{{ question.stem }}</strong>
               <small>{{ question.is_reviewed ? "已审核" : "待审核" }} · {{ sourceChapterName(question.chapter_id) }}</small>
             </button>
@@ -304,10 +319,22 @@
                 <p class="eyebrow">Question #{{ editingQuestion.id }}</p>
                 <h3>{{ typeLabel(editingQuestion.type) }}维护</h3>
               </div>
-              <label class="toggle-line">
-                <input v-model="editForm.is_reviewed" type="checkbox" />
-                <span>学生可见</span>
-              </label>
+              <div class="editor-switches">
+                <label class="toggle-line">
+                  <input v-model="editForm.is_reviewed" type="checkbox" />
+                  <span>学生可见</span>
+                </label>
+                <label class="toggle-line">
+                  <input v-model="editForm.is_ai_generated" type="checkbox" />
+                  <span>AI生成</span>
+                </label>
+              </div>
+            </div>
+            <div class="source-note">
+              <b class="source-chip" :class="sourceTagClass(editingQuestion.source_type)">
+                {{ editingQuestion.source_label }}
+              </b>
+              <span>{{ editingQuestion.source_assignment || editingQuestion.source_context || "暂无来源说明" }}</span>
             </div>
 
             <div class="editor-grid">
@@ -500,6 +527,7 @@ const selectedQuestionType = ref<QuestionType | "">("");
 const adminChapterId = ref(0);
 const adminQuestionType = ref<QuestionType | "">("");
 const adminReviewed = ref<"" | "true" | "false">("");
+const adminSourceType = ref<"" | "homework" | "ai" | "sample" | "manual">("");
 const adminKeyword = ref("");
 const knowledgeChapterId = ref(1);
 const knowledgeQuery = ref("");
@@ -518,6 +546,7 @@ const editForm = reactive({
   answerJson: "{}",
   rubricJson: "[]",
   explanation: "",
+  is_ai_generated: false,
   is_reviewed: true,
 });
 
@@ -557,6 +586,10 @@ function typeLabel(type: string) {
 
 function difficultyLabel(value: string) {
   return { easy: "基础", medium: "中等", hard: "提高" }[value] ?? value;
+}
+
+function sourceTagClass(value: string) {
+  return `source-${value}`;
 }
 
 function sourceChapterName(chapterId: number) {
@@ -806,6 +839,7 @@ async function loadAdminQuestions() {
     const data = await api.adminQuestions({
       chapter_id: adminChapterId.value || null,
       question_type: adminQuestionType.value,
+      source_type: adminSourceType.value,
       reviewed: adminReviewed.value === "" ? "" : adminReviewed.value === "true",
       keyword: adminKeyword.value,
       limit: 40,
@@ -831,6 +865,7 @@ function selectAdminQuestion(question: QuestionAdmin) {
   editForm.answerJson = JSON.stringify(question.answer_json, null, 2);
   editForm.rubricJson = JSON.stringify(question.rubric_json, null, 2);
   editForm.explanation = question.explanation ?? "";
+  editForm.is_ai_generated = question.is_ai_generated;
   editForm.is_reviewed = question.is_reviewed;
   adminMessage.value = "";
 }
@@ -855,6 +890,7 @@ async function saveAdminQuestion() {
       answer_json: parseJsonField(editForm.answerJson, {}),
       rubric_json: parseJsonField(editForm.rubricJson, []),
       explanation: editForm.explanation || null,
+      is_ai_generated: editForm.is_ai_generated,
       is_reviewed: editForm.is_reviewed,
     });
     const index = adminQuestions.value.findIndex((item) => item.id === saved.id);

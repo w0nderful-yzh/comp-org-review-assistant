@@ -37,6 +37,8 @@ class QuestionOut(BaseModel):
     stem: str
     options: Any
     blank_count: int = 0
+    source_type: Literal["homework", "ai", "sample", "manual"] = "manual"
+    source_label: str = "人工维护"
     explanation: str | None = None
 
 
@@ -69,6 +71,7 @@ class QuestionUpdate(BaseModel):
     answer_json: Any | None = None
     rubric_json: Any | None = None
     explanation: str | None = None
+    is_ai_generated: bool | None = None
     is_reviewed: bool | None = None
 
 

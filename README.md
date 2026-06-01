@@ -47,3 +47,5 @@ Open:
 ```text
 http://localhost:5173
 ```
+
+The app includes a local question-bank maintenance view under `题库维护` for filtering, reviewing, and editing imported questions.

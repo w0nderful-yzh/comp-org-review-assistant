@@ -18,6 +18,22 @@ export type Question = {
   explanation?: string | null;
 };
 
+export type QuestionAdmin = Question & {
+  answer_json: unknown;
+  rubric_json: unknown;
+  is_ai_generated: boolean;
+  is_reviewed: boolean;
+  source_assignment: string | null;
+  source_context: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type QuestionAdminList = {
+  items: QuestionAdmin[];
+  total: number;
+};
+
 export type QuestionType =
   | "single_choice"
   | "multiple_choice"
@@ -97,6 +113,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   chapters: () => request<Chapter[]>("/api/chapters"),
+  adminQuestions: (params: {
+    chapter_id?: number | null;
+    question_type?: QuestionType | "";
+    reviewed?: boolean | "";
+    keyword?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params.chapter_id) search.set("chapter_id", String(params.chapter_id));
+    if (params.question_type) search.set("question_type", params.question_type);
+    if (params.reviewed !== "") search.set("reviewed", String(params.reviewed));
+    if (params.keyword) search.set("keyword", params.keyword);
+    search.set("limit", String(params.limit ?? 30));
+    search.set("offset", String(params.offset ?? 0));
+    return request<QuestionAdminList>(`/api/admin/questions?${search.toString()}`);
+  },
+  updateQuestion: (
+    questionId: number,
+    payload: Partial<{
+      chapter_id: number;
+      type: QuestionType;
+      difficulty: "easy" | "medium" | "hard";
+      stem: string;
+      options_json: unknown;
+      answer_json: unknown;
+      rubric_json: unknown;
+      explanation: string | null;
+      is_reviewed: boolean;
+    }>,
+  ) =>
+    request<QuestionAdmin>(`/api/admin/questions/${questionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   createPractice: (payload: {
     mode: "chapter" | "final_review" | "wrong_questions";
     chapter_id?: number | null;

@@ -44,6 +44,34 @@ class QuestionReviewOut(QuestionOut):
     answer: Any
 
 
+class QuestionAdminOut(QuestionOut):
+    answer_json: Any
+    rubric_json: Any
+    is_ai_generated: bool
+    is_reviewed: bool
+    source_assignment: str | None
+    source_context: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuestionAdminListOut(BaseModel):
+    items: list[QuestionAdminOut]
+    total: int
+
+
+class QuestionUpdate(BaseModel):
+    chapter_id: int | None = None
+    type: QuestionType | None = None
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    stem: str | None = None
+    options_json: Any | None = None
+    answer_json: Any | None = None
+    rubric_json: Any | None = None
+    explanation: str | None = None
+    is_reviewed: bool | None = None
+
+
 class PracticeCreate(BaseModel):
     mode: Literal["chapter", "final_review", "wrong_questions"] = "chapter"
     chapter_id: int | None = None

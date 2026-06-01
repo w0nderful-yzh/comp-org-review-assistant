@@ -31,6 +31,7 @@ TOP_RE = re.compile(r"^(\d+)\.\s*\(([^)]+)\)\s*(.*)$")
 SUB_RE = re.compile(r"^\((\d+)\)\s*\(([^)]+)\)\s*(.*)$")
 OPTION_RE = re.compile(r"^([A-H])\.\s*(.*)$")
 ANSWER_RE = re.compile(r"^正确答案[:：]\s*(.*)$")
+SECTION_SUMMARY_RE = re.compile(r"^[一二三四五六七八九十]+[.．]\s*.+（\d+")
 
 
 @dataclass
@@ -145,6 +146,8 @@ def split_answer_and_explanation(answer_line_tail: str, lines_after_answer: list
         stripped = clean_text(line)
         if not stripped:
             continue
+        if SECTION_SUMMARY_RE.match(stripped):
+            break
         if stripped.startswith(":") or stripped.startswith("："):
             in_explanation = True
             explanation_lines.append(stripped[1:].strip())

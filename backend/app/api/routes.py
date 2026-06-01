@@ -12,6 +12,9 @@ from app.schemas.api import (
     AnswerResult,
     ChapterOut,
     ChapterStatistics,
+    QuestionAdminListOut,
+    QuestionAdminOut,
+    QuestionUpdate,
     PracticeCreate,
     PracticeOut,
     PracticeResult,
@@ -45,6 +48,21 @@ def question_out(question: Question) -> QuestionOut:
 def question_review_out(question: Question) -> QuestionReviewOut:
     base = question_out(question).model_dump()
     return QuestionReviewOut(**base, answer=public_answer(question.answer_json))
+
+
+def question_admin_out(question: Question) -> QuestionAdminOut:
+    base = question_out(question).model_dump()
+    return QuestionAdminOut(
+        **base,
+        answer_json=question.answer_json,
+        rubric_json=question.rubric_json,
+        is_ai_generated=question.is_ai_generated,
+        is_reviewed=question.is_reviewed,
+        source_assignment=question.source_assignment,
+        source_context=question.source_context,
+        created_at=question.created_at,
+        updated_at=question.updated_at,
+    )
 
 
 @router.get("/health")
@@ -109,6 +127,72 @@ def list_questions(
         conditions.append(Question.type == question_type)
     questions = db.scalars(select(Question).where(*conditions).order_by(Question.id)).all()
     return [question_review_out(question) for question in questions]
+
+
+@router.get("/admin/questions", response_model=QuestionAdminListOut)
+def admin_list_questions(
+    chapter_id: int | None = None,
+    question_type: str | None = None,
+    reviewed: bool | None = None,
+    keyword: str | None = None,
+    limit: int = 30,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> QuestionAdminListOut:
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    conditions = []
+    if chapter_id:
+        conditions.append(Question.chapter_id == chapter_id)
+    if question_type:
+        conditions.append(Question.type == question_type)
+    if reviewed is not None:
+        conditions.append(Question.is_reviewed.is_(reviewed))
+    if keyword:
+        conditions.append(Question.stem.ilike(f"%{keyword}%"))
+
+    total = db.scalar(select(func.count(Question.id)).where(*conditions)) or 0
+    questions = db.scalars(
+        select(Question)
+        .where(*conditions)
+        .order_by(Question.updated_at.desc(), Question.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return QuestionAdminListOut(items=[question_admin_out(question) for question in questions], total=total)
+
+
+@router.get("/admin/questions/{question_id}", response_model=QuestionAdminOut)
+def admin_get_question(question_id: int, db: Session = Depends(get_db)) -> QuestionAdminOut:
+    question = db.get(Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return question_admin_out(question)
+
+
+@router.patch("/admin/questions/{question_id}", response_model=QuestionAdminOut)
+def admin_update_question(
+    question_id: int,
+    payload: QuestionUpdate,
+    db: Session = Depends(get_db),
+) -> QuestionAdminOut:
+    question = db.get(Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        if field == "options_json" and value is None:
+            value = []
+        if field == "answer_json" and value is None:
+            value = {}
+        if field == "rubric_json" and value is None:
+            value = []
+        setattr(question, field, value)
+    question.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(question)
+    return question_admin_out(question)
 
 
 @router.post("/practice-sessions", response_model=PracticeOut)

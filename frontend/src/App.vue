@@ -22,6 +22,10 @@
           <BarChart3 :size="18" />
           <span>学习统计</span>
         </button>
+        <button :class="{ active: activeView === 'admin' }" @click="openAdmin">
+          <ClipboardList :size="18" />
+          <span>题库维护</span>
+        </button>
       </nav>
 
       <section class="sidebar-panel">
@@ -42,7 +46,7 @@
           <p class="eyebrow">Phase 1</p>
           <h2>{{ viewTitle }}</h2>
         </div>
-        <button class="icon-button" title="刷新数据" @click="refreshAll">
+        <button class="icon-button" title="刷新数据" @click="refreshCurrent">
           <RefreshCw :size="18" />
         </button>
       </header>
@@ -203,6 +207,144 @@
         </div>
       </section>
 
+      <section v-else-if="activeView === 'admin'" class="admin-layout">
+        <div class="admin-list-panel">
+          <div class="admin-filters">
+            <label>
+              <span>章节</span>
+              <select v-model.number="adminChapterId">
+                <option :value="0">全部章节</option>
+                <option v-for="chapter in chapters" :key="chapter.id" :value="chapter.id">
+                  第 {{ chapter.order_index }} 章：{{ chapter.title }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>题型</span>
+              <select v-model="adminQuestionType">
+                <option value="">全部题型</option>
+                <option value="single_choice">单选题</option>
+                <option value="multiple_choice">多选题</option>
+                <option value="true_false">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="short_answer">简答题</option>
+                <option value="calculation">计算题</option>
+              </select>
+            </label>
+            <label>
+              <span>状态</span>
+              <select v-model="adminReviewed">
+                <option value="">全部</option>
+                <option value="true">已审核</option>
+                <option value="false">待审核</option>
+              </select>
+            </label>
+            <label>
+              <span>关键词</span>
+              <input v-model="adminKeyword" placeholder="题干搜索" @keyup.enter="loadAdminQuestions" />
+            </label>
+            <button class="primary-button" :disabled="loading" @click="loadAdminQuestions">
+              <Search :size="18" />
+              <span>筛选</span>
+            </button>
+          </div>
+
+          <div class="admin-total">共 {{ adminTotal }} 题</div>
+          <div class="admin-question-list">
+            <button
+              v-for="question in adminQuestions"
+              :key="question.id"
+              class="admin-question-row"
+              :class="{ selected: editingQuestion?.id === question.id }"
+              @click="selectAdminQuestion(question)"
+            >
+              <span>{{ typeLabel(question.type) }}</span>
+              <strong>{{ question.stem }}</strong>
+              <small>{{ question.is_reviewed ? "已审核" : "待审核" }} · {{ sourceChapterName(question.chapter_id) }}</small>
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-editor-panel">
+          <div v-if="editingQuestion" class="editor-form">
+            <div class="editor-head">
+              <div>
+                <p class="eyebrow">Question #{{ editingQuestion.id }}</p>
+                <h3>{{ typeLabel(editingQuestion.type) }}维护</h3>
+              </div>
+              <label class="toggle-line">
+                <input v-model="editForm.is_reviewed" type="checkbox" />
+                <span>学生可见</span>
+              </label>
+            </div>
+
+            <div class="editor-grid">
+              <label>
+                <span>章节</span>
+                <select v-model.number="editForm.chapter_id">
+                  <option v-for="chapter in chapters" :key="chapter.id" :value="chapter.id">
+                    第 {{ chapter.order_index }} 章：{{ chapter.title }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>题型</span>
+                <select v-model="editForm.type">
+                  <option value="single_choice">单选题</option>
+                  <option value="multiple_choice">多选题</option>
+                  <option value="true_false">判断题</option>
+                  <option value="fill_blank">填空题</option>
+                  <option value="short_answer">简答题</option>
+                  <option value="calculation">计算题</option>
+                </select>
+              </label>
+              <label>
+                <span>难度</span>
+                <select v-model="editForm.difficulty">
+                  <option value="easy">基础</option>
+                  <option value="medium">中等</option>
+                  <option value="hard">提高</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>题干</span>
+              <textarea v-model="editForm.stem" class="editor-textarea tall" />
+            </label>
+            <label>
+              <span>选项 JSON</span>
+              <textarea v-model="editForm.optionsJson" class="editor-textarea" />
+            </label>
+            <label>
+              <span>答案 JSON</span>
+              <textarea v-model="editForm.answerJson" class="editor-textarea" />
+            </label>
+            <label>
+              <span>评分点 JSON</span>
+              <textarea v-model="editForm.rubricJson" class="editor-textarea compact" />
+            </label>
+            <label>
+              <span>解析</span>
+              <textarea v-model="editForm.explanation" class="editor-textarea" />
+            </label>
+
+            <div class="editor-actions">
+              <button class="submit-button" :disabled="loading" @click="saveAdminQuestion">
+                <Save :size="18" />
+                <span>保存题目</span>
+              </button>
+              <span v-if="adminMessage" class="save-message">{{ adminMessage }}</span>
+            </div>
+          </div>
+
+          <div v-else class="empty-state">
+            <ClipboardList :size="38" />
+            <p>选择一道题开始维护。</p>
+          </div>
+        </div>
+      </section>
+
       <section v-else class="stats-grid">
         <article class="stat-card">
           <span>作答题数</span>
@@ -239,13 +381,16 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   GraduationCap,
   Play,
   RefreshCw,
   RotateCcw,
+  Save,
+  Search,
   Shuffle,
 } from "@lucide/vue";
-import { api, type AnswerResult, type Chapter, type ChapterStatistics, type PracticeResult, type PracticeSession, type Question, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
+import { api, type AnswerResult, type Chapter, type ChapterStatistics, type PracticeResult, type PracticeSession, type Question, type QuestionAdmin, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
 
 const chapters = ref<Chapter[]>([]);
 const session = ref<PracticeSession | null>(null);
@@ -253,18 +398,38 @@ const result = ref<PracticeResult | null>(null);
 const overview = ref<StatisticsOverview | null>(null);
 const chapterStats = ref<ChapterStatistics[]>([]);
 const wrongQuestions = ref<WrongQuestion[]>([]);
-const activeView = ref<"practice" | "wrong" | "stats">("practice");
+const adminQuestions = ref<QuestionAdmin[]>([]);
+const adminTotal = ref(0);
+const editingQuestion = ref<QuestionAdmin | null>(null);
+const activeView = ref<"practice" | "wrong" | "stats" | "admin">("practice");
 const practiceMode = ref<"chapter" | "final_review">("chapter");
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
+const adminChapterId = ref(0);
+const adminQuestionType = ref<QuestionType | "">("");
+const adminReviewed = ref<"" | "true" | "false">("");
+const adminKeyword = ref("");
+const adminMessage = ref("");
 const questionCount = ref(5);
 const loading = ref(false);
 const error = ref("");
 const answers = reactive<Record<number, string | string[]>>({});
+const editForm = reactive({
+  chapter_id: 1,
+  type: "single_choice" as QuestionType,
+  difficulty: "medium" as "easy" | "medium" | "hard",
+  stem: "",
+  optionsJson: "[]",
+  answerJson: "{}",
+  rubricJson: "[]",
+  explanation: "",
+  is_reviewed: true,
+});
 
 const viewTitle = computed(() => {
   if (activeView.value === "wrong") return "错题本";
   if (activeView.value === "stats") return "学习统计";
+  if (activeView.value === "admin") return "题库维护";
   if (practiceMode.value === "final_review") return "总复习练习";
   const chapter = chapters.value.find((item) => item.id === selectedChapterId.value);
   return chapter ? `第 ${chapter.order_index} 章：${chapter.title}` : "章节练习";
@@ -293,6 +458,11 @@ function typeLabel(type: string) {
 
 function difficultyLabel(value: string) {
   return { easy: "基础", medium: "中等", hard: "提高" }[value] ?? value;
+}
+
+function sourceChapterName(chapterId: number) {
+  const chapter = chapters.value.find((item) => item.id === chapterId);
+  return chapter ? `第 ${chapter.order_index} 章` : `章节 ${chapterId}`;
 }
 
 function selectChapter(chapterId: number) {
@@ -349,6 +519,13 @@ async function refreshAll() {
   chapters.value = chapterRows;
   overview.value = overviewData;
   if (!selectedChapterId.value && chapterRows.length) selectedChapterId.value = chapterRows[0].id;
+}
+
+async function refreshCurrent() {
+  if (activeView.value === "wrong") await openWrongQuestions();
+  else if (activeView.value === "stats") await openStats();
+  else if (activeView.value === "admin") await loadAdminQuestions();
+  else await refreshAll();
 }
 
 async function startPractice() {
@@ -412,6 +589,83 @@ async function openStats() {
   const [overviewData, stats] = await Promise.all([api.overview(), api.chapterStats()]);
   overview.value = overviewData;
   chapterStats.value = stats;
+}
+
+async function openAdmin() {
+  activeView.value = "admin";
+  await loadAdminQuestions();
+}
+
+async function loadAdminQuestions() {
+  loading.value = true;
+  error.value = "";
+  adminMessage.value = "";
+  try {
+    const data = await api.adminQuestions({
+      chapter_id: adminChapterId.value || null,
+      question_type: adminQuestionType.value,
+      reviewed: adminReviewed.value === "" ? "" : adminReviewed.value === "true",
+      keyword: adminKeyword.value,
+      limit: 40,
+      offset: 0,
+    });
+    adminQuestions.value = data.items;
+    adminTotal.value = data.total;
+    if (!editingQuestion.value && data.items.length) selectAdminQuestion(data.items[0]);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "加载题库失败";
+  } finally {
+    loading.value = false;
+  }
+}
+
+function selectAdminQuestion(question: QuestionAdmin) {
+  editingQuestion.value = question;
+  editForm.chapter_id = question.chapter_id;
+  editForm.type = question.type;
+  editForm.difficulty = question.difficulty as "easy" | "medium" | "hard";
+  editForm.stem = question.stem;
+  editForm.optionsJson = JSON.stringify(question.options, null, 2);
+  editForm.answerJson = JSON.stringify(question.answer_json, null, 2);
+  editForm.rubricJson = JSON.stringify(question.rubric_json, null, 2);
+  editForm.explanation = question.explanation ?? "";
+  editForm.is_reviewed = question.is_reviewed;
+  adminMessage.value = "";
+}
+
+function parseJsonField(value: string, fallback: unknown) {
+  if (!value.trim()) return fallback;
+  return JSON.parse(value);
+}
+
+async function saveAdminQuestion() {
+  if (!editingQuestion.value) return;
+  loading.value = true;
+  error.value = "";
+  adminMessage.value = "";
+  try {
+    const saved = await api.updateQuestion(editingQuestion.value.id, {
+      chapter_id: editForm.chapter_id,
+      type: editForm.type,
+      difficulty: editForm.difficulty,
+      stem: editForm.stem,
+      options_json: parseJsonField(editForm.optionsJson, []),
+      answer_json: parseJsonField(editForm.answerJson, {}),
+      rubric_json: parseJsonField(editForm.rubricJson, []),
+      explanation: editForm.explanation || null,
+      is_reviewed: editForm.is_reviewed,
+    });
+    const index = adminQuestions.value.findIndex((item) => item.id === saved.id);
+    if (index >= 0) adminQuestions.value[index] = saved;
+    editingQuestion.value = saved;
+    selectAdminQuestion(saved);
+    adminMessage.value = "已保存";
+    await refreshAll();
+  } catch (err) {
+    error.value = err instanceof SyntaxError ? "JSON 格式不正确" : err instanceof Error ? err.message : "保存失败";
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(refreshAll);

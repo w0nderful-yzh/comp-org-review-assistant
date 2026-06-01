@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, func, or_, select
@@ -8,23 +8,23 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, WrongQuestion
+from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, QuestionFeedback, WrongQuestion
 from app.schemas.api import (
     AiQuestionDraftCreate,
     AiQuestionDraftOut,
+    AiStatusOut,
     AnswerResult,
     ChapterOut,
     ChapterStatistics,
     KnowledgeChunkOut,
     KnowledgePointOut,
     KnowledgeSearchOut,
-    QuestionAdminListOut,
-    QuestionAdminOut,
-    QuestionUpdate,
     PracticeCreate,
     PracticeOut,
     PracticeResult,
     PracticeSubmit,
+    QuestionFeedbackCreate,
+    QuestionFeedbackOut,
     QuestionOut,
     QuestionReviewOut,
     StatisticsOverview,
@@ -32,6 +32,26 @@ from app.schemas.api import (
 )
 from app.services.ai_generation import AiGenerationError, generate_question_drafts
 from app.services.grading import grade_answer, public_answer
+
+UNHELPFUL_ARCHIVE_THRESHOLD = 3
+DAILY_AI_LIMIT = 30
+
+FLAG_SCORE_MAP = {
+    "answer_error": (-5, 1),     # (quality_delta, error_count_delta)
+    "ambiguous_options": (-3, 0),
+    "out_of_scope": (-4, 0),
+    "unclear_stem": (-2, 0),
+    "unclear_explanation": (-2, 0),
+    "duplicate": (-2, 0),
+}
+
+AI_STATUS_LABELS = {
+    "temporary": "AI 临时补充题",
+    "candidate": "AI 补充题 · 候选",
+    "community_approved": "AI 补充题 · 已通过反馈",
+    "verified": "AI 补充题 · 已确认",
+    "flagged": "AI 补充题 · 待检查",
+}
 
 router = APIRouter(prefix="/api")
 
@@ -49,6 +69,8 @@ def question_source_type(question: Question) -> str:
 
 
 def question_source_label(question: Question) -> str:
+    if question.is_ai_generated and question.ai_status:
+        return AI_STATUS_LABELS.get(question.ai_status, "AI生成")
     labels = {
         "ai": "AI生成",
         "homework": "作业原题",
@@ -58,29 +80,7 @@ def question_source_label(question: Question) -> str:
     return labels[question_source_type(question)]
 
 
-def source_type_conditions(source_type: str):
-    homework_condition = or_(
-        Question.source_context.ilike("%homework-examples%"),
-        Question.source_assignment.ilike("%作业%"),
-    )
-    sample_condition = Question.source_context.ilike("%phase-1 sample seed%")
-    if source_type == "ai":
-        return Question.is_ai_generated.is_(True)
-    if source_type == "homework":
-        return and_(Question.is_ai_generated.is_(False), homework_condition)
-    if source_type == "sample":
-        return and_(Question.is_ai_generated.is_(False), sample_condition)
-    if source_type == "manual":
-        return and_(
-            Question.is_ai_generated.is_(False),
-            or_(Question.source_context.is_(None), ~Question.source_context.ilike("%phase-1 sample seed%")),
-            or_(Question.source_context.is_(None), ~Question.source_context.ilike("%homework-examples%")),
-            or_(Question.source_assignment.is_(None), ~Question.source_assignment.ilike("%作业%")),
-        )
-    return None
-
-
-def question_out(question: Question) -> QuestionOut:
+def question_out(question: Question, likes: int = 0, user_liked: bool = False) -> QuestionOut:
     blank_count = 0
     if question.type in {"fill_blank", "cloze"} and isinstance(question.answer_json, dict):
         blank_count = len(question.answer_json.get("blanks", []))
@@ -95,27 +95,16 @@ def question_out(question: Question) -> QuestionOut:
         source_type=question_source_type(question),
         source_label=question_source_label(question),
         explanation=question.explanation,
+        likes=likes,
+        user_liked=user_liked,
+        ai_status=question.ai_status,
+        quality_score=question.quality_score,
     )
 
 
-def question_review_out(question: Question) -> QuestionReviewOut:
-    base = question_out(question).model_dump()
+def question_review_out(question: Question, likes: int = 0, user_liked: bool = False) -> QuestionReviewOut:
+    base = question_out(question, likes, user_liked).model_dump()
     return QuestionReviewOut(**base, answer=public_answer(question.answer_json))
-
-
-def question_admin_out(question: Question) -> QuestionAdminOut:
-    base = question_out(question).model_dump()
-    return QuestionAdminOut(
-        **base,
-        answer_json=question.answer_json,
-        rubric_json=question.rubric_json,
-        is_ai_generated=question.is_ai_generated,
-        is_reviewed=question.is_reviewed,
-        source_assignment=question.source_assignment,
-        source_context=question.source_context,
-        created_at=question.created_at,
-        updated_at=question.updated_at,
-    )
 
 
 def knowledge_point_out(point: KnowledgePoint) -> KnowledgePointOut:
@@ -140,9 +129,77 @@ def knowledge_chunk_out(chunk: KnowledgeChunk) -> KnowledgeChunkOut:
     )
 
 
+def load_feedback_map(db: Session, question_ids: list[int], user_id: str = "demo") -> dict[int, dict]:
+    if not question_ids:
+        return {}
+    counts = dict(
+        db.execute(
+            select(QuestionFeedback.question_id, func.count())
+            .where(QuestionFeedback.question_id.in_(question_ids), QuestionFeedback.is_helpful.is_(True))
+            .group_by(QuestionFeedback.question_id)
+        ).all()
+    )
+    user_liked_ids = set(
+        db.scalars(
+            select(QuestionFeedback.question_id)
+            .where(
+                QuestionFeedback.question_id.in_(question_ids),
+                QuestionFeedback.user_id == user_id,
+                QuestionFeedback.is_helpful.is_(True),
+            )
+        ).all()
+    )
+    return {
+        qid: {"likes": counts.get(qid, 0), "user_liked": qid in user_liked_ids}
+        for qid in question_ids
+    }
+
+
+def check_ai_status_transition(question: Question) -> None:
+    if not question.is_ai_generated or not question.ai_status:
+        return
+
+    if question.quality_score <= -5:
+        question.ai_status = "archived"
+        question.archived = True
+        return
+
+    if question.ai_status in ("temporary", "candidate") and question.error_count >= 2:
+        question.ai_status = "flagged"
+        return
+
+    total = question.helpful_count + question.not_helpful_count
+    if question.ai_status == "temporary":
+        if question.attempt_count >= 5 and question.quality_score >= 6 and question.error_count == 0:
+            question.ai_status = "candidate"
+    elif question.ai_status == "candidate":
+        if question.attempt_count >= 10 and total > 0 and question.helpful_count / total >= 0.7 and question.quality_score >= 10:
+            question.ai_status = "community_approved"
+
+
+def get_daily_ai_count(db: Session, user_id: str) -> int:
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return db.scalar(
+        select(func.count(Question.id))
+        .where(
+            Question.is_ai_generated.is_(True),
+            Question.created_at >= today_start,
+        )
+    ) or 0
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/ai-status", response_model=AiStatusOut)
+def ai_status(user_id: str = "demo", db: Session = Depends(get_db)) -> AiStatusOut:
+    settings = get_settings()
+    if not settings.ai_enabled or not settings.ai_api_key:
+        return AiStatusOut(enabled=False, daily_remaining=0)
+    used = get_daily_ai_count(db, user_id)
+    return AiStatusOut(enabled=True, daily_remaining=max(0, DAILY_AI_LIMIT - used))
 
 
 @router.get("/chapters", response_model=list[ChapterOut])
@@ -150,7 +207,7 @@ def list_chapters(db: Session = Depends(get_db)) -> list[ChapterOut]:
     counts = dict(
         db.execute(
             select(Question.chapter_id, func.count(Question.id))
-            .where(Question.is_reviewed.is_(True))
+            .where(Question.archived.is_(False))
             .group_by(Question.chapter_id)
         ).all()
     )
@@ -176,7 +233,7 @@ def get_chapter(chapter_id: int, db: Session = Depends(get_db)) -> ChapterOut:
     count = db.scalar(
         select(func.count(Question.id)).where(
             Question.chapter_id == chapter_id,
-            Question.is_reviewed.is_(True),
+            Question.archived.is_(False),
         )
     )
     return ChapterOut(
@@ -256,94 +313,133 @@ def search_knowledge(
 def list_questions(
     chapter_id: int | None = None,
     question_type: str | None = None,
+    user_id: str = "demo",
     db: Session = Depends(get_db),
 ) -> list[QuestionReviewOut]:
-    conditions = [Question.is_reviewed.is_(True)]
+    conditions = [Question.archived.is_(False)]
     if chapter_id:
         conditions.append(Question.chapter_id == chapter_id)
     if question_type:
         conditions.append(Question.type == question_type)
     questions = db.scalars(select(Question).where(*conditions).order_by(Question.id)).all()
-    return [question_review_out(question) for question in questions]
+    feedback_map = load_feedback_map(db, [q.id for q in questions], user_id)
+    return [question_review_out(q, **feedback_map.get(q.id, {"likes": 0, "user_liked": False})) for q in questions]
 
 
-@router.get("/admin/questions", response_model=QuestionAdminListOut)
-def admin_list_questions(
-    chapter_id: int | None = None,
-    question_type: str | None = None,
-    source_type: str | None = None,
-    reviewed: bool | None = None,
-    keyword: str | None = None,
-    limit: int = 30,
-    offset: int = 0,
-    db: Session = Depends(get_db),
-) -> QuestionAdminListOut:
-    limit = min(max(limit, 1), 100)
-    offset = max(offset, 0)
-    conditions = []
-    if chapter_id:
-        conditions.append(Question.chapter_id == chapter_id)
-    if question_type:
-        conditions.append(Question.type == question_type)
-    if source_type:
-        source_condition = source_type_conditions(source_type)
-        if source_condition is None:
-            raise HTTPException(status_code=400, detail="Unsupported source_type")
-        conditions.append(source_condition)
-    if reviewed is not None:
-        conditions.append(Question.is_reviewed.is_(reviewed))
-    if keyword:
-        conditions.append(Question.stem.ilike(f"%{keyword}%"))
-
-    total = db.scalar(select(func.count(Question.id)).where(*conditions)) or 0
-    questions = db.scalars(
-        select(Question)
-        .where(*conditions)
-        .order_by(Question.updated_at.desc(), Question.id.desc())
-        .limit(limit)
-        .offset(offset)
-    ).all()
-    return QuestionAdminListOut(items=[question_admin_out(question) for question in questions], total=total)
-
-
-@router.get("/admin/questions/{question_id}", response_model=QuestionAdminOut)
-def admin_get_question(question_id: int, db: Session = Depends(get_db)) -> QuestionAdminOut:
-    question = db.get(Question, question_id)
-    if not question:
-        raise HTTPException(status_code=404, detail="Question not found")
-    return question_admin_out(question)
-
-
-@router.patch("/admin/questions/{question_id}", response_model=QuestionAdminOut)
-def admin_update_question(
+@router.post("/questions/{question_id}/feedback", response_model=QuestionFeedbackOut)
+def submit_feedback(
     question_id: int,
-    payload: QuestionUpdate,
+    payload: QuestionFeedbackCreate,
+    user_id: str = "demo",
     db: Session = Depends(get_db),
-) -> QuestionAdminOut:
+) -> QuestionFeedbackOut:
     question = db.get(Question, question_id)
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        if field == "options_json" and value is None:
-            value = []
-        if field == "answer_json" and value is None:
-            value = {}
-        if field == "rubric_json" and value is None:
-            value = []
-        setattr(question, field, value)
-    question.updated_at = datetime.now(timezone.utc)
+    is_helpful = payload.feedback_type == "helpful"
+
+    existing = db.scalar(
+        select(QuestionFeedback).where(
+            QuestionFeedback.user_id == user_id,
+            QuestionFeedback.question_id == question_id,
+        )
+    )
+    if existing:
+        existing.is_helpful = is_helpful
+        existing.feedback_type = payload.feedback_type
+        existing.reason = payload.reason
+    else:
+        db.add(QuestionFeedback(
+            user_id=user_id,
+            question_id=question_id,
+            is_helpful=is_helpful,
+            feedback_type=payload.feedback_type,
+            reason=payload.reason,
+        ))
+
+    if question.is_ai_generated and question.ai_status:
+        if payload.feedback_type == "helpful":
+            question.helpful_count += 1
+            question.quality_score += 2
+        elif payload.feedback_type == "not_helpful":
+            question.not_helpful_count += 1
+            question.quality_score -= 1
+        elif payload.feedback_type == "flag":
+            question.flag_count += 1
+            score_delta, error_delta = FLAG_SCORE_MAP.get(payload.reason or "", (-2, 0))
+            question.quality_score += score_delta
+            question.error_count += error_delta
+            if payload.reason == "answer_error":
+                question.error_count += 1
+        check_ai_status_transition(question)
+    elif not question.is_ai_generated:
+        if payload.feedback_type != "helpful":
+            unhelpful_count = db.scalar(
+                select(func.count()).where(
+                    QuestionFeedback.question_id == question_id,
+                    QuestionFeedback.is_helpful.is_(False),
+                )
+            ) or 0
+            if unhelpful_count >= UNHELPFUL_ARCHIVE_THRESHOLD:
+                question.archived = True
+
     db.commit()
-    db.refresh(question)
-    return question_admin_out(question)
+
+    likes = db.scalar(
+        select(func.count()).where(QuestionFeedback.question_id == question_id, QuestionFeedback.is_helpful.is_(True))
+    ) or 0
+    unhelpful = db.scalar(
+        select(func.count()).where(QuestionFeedback.question_id == question_id, QuestionFeedback.is_helpful.is_(False))
+    ) or 0
+    flags = db.scalar(
+        select(func.count()).where(QuestionFeedback.question_id == question_id, QuestionFeedback.feedback_type == "flag")
+    ) or 0
+    return QuestionFeedbackOut(
+        question_id=question_id,
+        likes=likes,
+        unhelpful=unhelpful,
+        flags=flags,
+        user_liked=is_helpful,
+        ai_status=question.ai_status,
+        quality_score=question.quality_score,
+    )
 
 
-@router.post("/admin/ai-question-drafts", response_model=AiQuestionDraftOut)
+@router.delete("/questions/{question_id}/feedback")
+def delete_feedback(
+    question_id: int,
+    user_id: str = "demo",
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    existing = db.scalar(
+        select(QuestionFeedback).where(
+            QuestionFeedback.user_id == user_id,
+            QuestionFeedback.question_id == question_id,
+        )
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    db.delete(existing)
+    db.commit()
+    return {"deleted": True}
+
+
+@router.post("/ai-question-drafts", response_model=AiQuestionDraftOut)
 def create_ai_question_drafts(
     payload: AiQuestionDraftCreate,
     db: Session = Depends(get_db),
 ) -> AiQuestionDraftOut:
+    settings = get_settings()
+    if not settings.ai_enabled or not settings.ai_api_key:
+        raise HTTPException(status_code=503, detail="AI service is not configured")
+
+    used = get_daily_ai_count(db, payload.user_id)
+    if used >= DAILY_AI_LIMIT:
+        raise HTTPException(status_code=429, detail=f"Daily AI generation limit reached ({DAILY_AI_LIMIT}/day)")
+
+    actual_count = min(payload.count, 5, DAILY_AI_LIMIT - used)
+
     chapter = db.get(Chapter, payload.chapter_id)
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
@@ -358,13 +454,22 @@ def create_ai_question_drafts(
         raise HTTPException(status_code=404, detail="No knowledge chunks available for this chapter")
 
     try:
-        drafts = generate_question_drafts(payload, chapter, chunks, get_settings())
+        drafts = generate_question_drafts(payload, chapter, chunks, settings)
     except AiGenerationError as exc:
         status_code = 503 if "AI_API_KEY" in str(exc) else 502
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
+    existing_stems = set(
+        db.scalars(
+            select(Question.stem)
+            .where(Question.chapter_id == payload.chapter_id, Question.archived.is_(False))
+        ).all()
+    )
+
     question_ids: list[int] = []
-    for draft in drafts:
+    for draft in drafts[:actual_count]:
+        if any(draft.stem in s or s in draft.stem for s in existing_stems if len(s) > 10):
+            continue
         question = Question(
             chapter_id=draft.chapter_id,
             knowledge_point_id=None,
@@ -379,7 +484,9 @@ def create_ai_question_drafts(
             source_context=draft.source_context,
             source_assignment="AI题目生成",
             is_ai_generated=True,
-            is_reviewed=False,
+            is_reviewed=True,
+            ai_status="temporary",
+            quality_score=0,
         )
         db.add(question)
         db.flush()
@@ -390,15 +497,30 @@ def create_ai_question_drafts(
 
 @router.post("/practice-sessions", response_model=PracticeOut)
 def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_db)) -> PracticeOut:
-    filters = [Question.is_reviewed.is_(True)]
-    if payload.source_scope == "original_only":
-        filters.append(Question.is_ai_generated.is_(False))
+    base_filter = [Question.archived.is_(False)]
+
     if payload.mode == "chapter":
         if not payload.chapter_id:
             raise HTTPException(status_code=400, detail="chapter_id is required for chapter practice")
-        filters.append(Question.chapter_id == payload.chapter_id)
+        base_filter.append(Question.chapter_id == payload.chapter_id)
     if payload.question_types:
-        filters.append(Question.type.in_(payload.question_types))
+        base_filter.append(Question.type.in_(payload.question_types))
+
+    if payload.source_scope == "original_only":
+        filters = base_filter + [Question.is_ai_generated.is_(False)]
+    elif payload.source_scope == "supplement":
+        ai_filter = and_(
+            Question.is_ai_generated.is_(True),
+            Question.ai_status.in_(["temporary", "candidate", "community_approved", "verified"]),
+        )
+        filters = base_filter + [or_(Question.is_ai_generated.is_(False), ai_filter)]
+    else:
+        verified_ai = and_(
+            Question.is_ai_generated.is_(True),
+            Question.ai_status.in_(["verified", "community_approved"]),
+        )
+        filters = base_filter + [or_(Question.is_ai_generated.is_(False), verified_ai)]
+
     if payload.mode == "wrong_questions":
         wrong_ids = select(WrongQuestion.question_id).where(
             WrongQuestion.user_id == payload.user_id,
@@ -406,14 +528,42 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
         )
         filters.append(Question.id.in_(wrong_ids))
 
-    questions = db.scalars(
-        select(Question)
-        .where(and_(*filters))
-        .order_by(func.random())
-        .limit(payload.question_count)
-    ).all()
+    if payload.source_scope == "standard" and payload.mode != "wrong_questions":
+        original_count = db.scalar(
+            select(func.count()).where(and_(*filters, Question.is_ai_generated.is_(False)))
+        ) or 0
+        ai_count_needed = max(1, payload.question_count // 5)
+        original_count_needed = payload.question_count - ai_count_needed
+
+        original_questions = db.scalars(
+            select(Question)
+            .where(and_(*filters, Question.is_ai_generated.is_(False)))
+            .order_by(func.random())
+            .limit(min(original_count_needed, original_count))
+        ).all()
+
+        ai_questions = db.scalars(
+            select(Question)
+            .where(and_(*filters, Question.is_ai_generated.is_(True)))
+            .order_by(func.random())
+            .limit(ai_count_needed)
+        ).all()
+
+        questions = list(original_questions) + list(ai_questions)
+        if not questions:
+            questions = db.scalars(
+                select(Question).where(and_(*filters)).order_by(func.random()).limit(payload.question_count)
+            ).all()
+    else:
+        questions = db.scalars(
+            select(Question)
+            .where(and_(*filters))
+            .order_by(func.random())
+            .limit(payload.question_count)
+        ).all()
+
     if not questions:
-        raise HTTPException(status_code=404, detail="No reviewed questions available for this practice")
+        raise HTTPException(status_code=404, detail="No questions available for this practice")
 
     session = PracticeSession(
         user_id=payload.user_id,
@@ -428,6 +578,7 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
     db.commit()
     db.refresh(session)
 
+    feedback_map = load_feedback_map(db, [q.id for q in questions], payload.user_id)
     return PracticeOut(
         id=session.id,
         mode=session.mode,
@@ -436,16 +587,17 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
         score=session.score,
         started_at=session.started_at,
         submitted_at=session.submitted_at,
-        questions=[question_out(question) for question in questions],
+        questions=[question_out(q, **feedback_map.get(q.id, {"likes": 0, "user_liked": False})) for q in questions],
     )
 
 
 @router.get("/practice-sessions/{session_id}", response_model=PracticeOut)
-def get_practice_session(session_id: int, db: Session = Depends(get_db)) -> PracticeOut:
+def get_practice_session(session_id: int, user_id: str = "demo", db: Session = Depends(get_db)) -> PracticeOut:
     session = db.get(PracticeSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Practice session not found")
     questions = [answer.question for answer in session.answers]
+    feedback_map = load_feedback_map(db, [q.id for q in questions], user_id)
     return PracticeOut(
         id=session.id,
         mode=session.mode,
@@ -454,7 +606,7 @@ def get_practice_session(session_id: int, db: Session = Depends(get_db)) -> Prac
         score=session.score,
         started_at=session.started_at,
         submitted_at=session.submitted_at,
-        questions=[question_out(question) for question in questions],
+        questions=[question_out(q, **feedback_map.get(q.id, {"likes": 0, "user_liked": False})) for q in questions],
     )
 
 
@@ -488,7 +640,12 @@ def submit_practice_session(
         record.feedback = feedback
         total_score += score
 
-        if not is_correct:
+        if question.is_ai_generated and question.ai_status:
+            question.attempt_count += 1
+
+        is_temporary_ai = question.is_ai_generated and question.ai_status == "temporary"
+
+        if not is_correct and not is_temporary_ai:
             wrong = db.scalar(
                 select(WrongQuestion).where(
                     WrongQuestion.user_id == payload.user_id,
@@ -535,10 +692,11 @@ def list_wrong_questions(
     if mastered is not None:
         conditions.append(WrongQuestion.mastered.is_(mastered))
     rows = db.scalars(select(WrongQuestion).where(*conditions).order_by(WrongQuestion.last_wrong_at.desc())).all()
+    feedback_map = load_feedback_map(db, [row.question_id for row in rows], user_id)
     return [
         WrongQuestionOut(
             id=row.id,
-            question=question_review_out(row.question),
+            question=question_review_out(row.question, **feedback_map.get(row.question_id, {"likes": 0, "user_liked": False})),
             wrong_count=row.wrong_count,
             mastered=row.mastered,
             last_wrong_at=row.last_wrong_at,
@@ -594,34 +752,33 @@ def statistics_overview(user_id: str = "demo", db: Session = Depends(get_db)) ->
 @router.get("/statistics/chapters", response_model=list[ChapterStatistics])
 def chapter_statistics(user_id: str = "demo", db: Session = Depends(get_db)) -> list[ChapterStatistics]:
     chapters = db.scalars(select(Chapter).order_by(Chapter.order_index)).all()
-    rows: list[ChapterStatistics] = []
-    for chapter in chapters:
-        answered = db.scalar(
-            select(func.count(AnswerRecord.id))
-            .join(PracticeSession)
-            .join(Question, Question.id == AnswerRecord.question_id)
-            .where(
-                PracticeSession.user_id == user_id,
-                Question.chapter_id == chapter.id,
-                or_(AnswerRecord.is_correct.is_(True), AnswerRecord.is_correct.is_(False)),
-            )
-        ) or 0
-        correct = db.scalar(
-            select(func.count(AnswerRecord.id))
-            .join(PracticeSession)
-            .join(Question, Question.id == AnswerRecord.question_id)
-            .where(
-                PracticeSession.user_id == user_id,
-                Question.chapter_id == chapter.id,
-                AnswerRecord.is_correct.is_(True),
-            )
-        ) or 0
-        rows.append(
-            ChapterStatistics(
-                chapter_id=chapter.id,
-                chapter_title=chapter.title,
-                answered=answered,
-                correct_rate=round(correct / answered, 4) if answered else 0,
-            )
+
+    stats_rows = db.execute(
+        select(
+            Question.chapter_id,
+            func.count(AnswerRecord.id).label("answered"),
+            func.count()
+            .filter(AnswerRecord.is_correct.is_(True))
+            .label("correct"),
         )
-    return rows
+        .join(AnswerRecord, AnswerRecord.question_id == Question.id)
+        .join(PracticeSession, PracticeSession.id == AnswerRecord.session_id)
+        .where(PracticeSession.user_id == user_id)
+        .where(AnswerRecord.is_correct.isnot(None))
+        .group_by(Question.chapter_id)
+    ).all()
+    stats_map = {row.chapter_id: row for row in stats_rows}
+
+    return [
+        ChapterStatistics(
+            chapter_id=chapter.id,
+            chapter_title=chapter.title,
+            answered=stats_map[chapter.id].answered if chapter.id in stats_map else 0,
+            correct_rate=(
+                round(stats_map[chapter.id].correct / stats_map[chapter.id].answered, 4)
+                if chapter.id in stats_map and stats_map[chapter.id].answered
+                else 0
+            ),
+        )
+        for chapter in chapters
+    ]

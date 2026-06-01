@@ -883,6 +883,161 @@ button {
   background: #2d7c6f;
 }
 
+/* feedback bar */
+.feedback-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 10px;
+}
+
+.feedback-prompt {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.feedback-btn:hover {
+  border-color: #2d7c6f;
+  color: #2d7c6f;
+}
+
+.feedback-btn.active {
+  background: #ecfdf5;
+  border-color: #2d7c6f;
+  color: #2d7c6f;
+  font-weight: 600;
+}
+
+.flag-btn.active {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #d97706;
+}
+
+.flag-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 4px;
+}
+
+.flag-reason-btn {
+  padding: 4px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.flag-reason-btn:hover {
+  border-color: #d97706;
+  color: #d97706;
+  background: #fffbeb;
+}
+
+.ai-question-notice {
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-size: 13px;
+  color: #1e40af;
+}
+
+.ai-disabled-notice {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.ai-generate-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-generate-actions small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* AI generation */
+.ai-generate-section {
+  margin-bottom: 16px;
+}
+
+.ai-generate-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ai-generate-toggle:hover {
+  border-color: #2d7c6f;
+  color: #2d7c6f;
+}
+
+.ai-generate-toggle .rotated {
+  transform: rotate(90deg);
+}
+
+.ai-generate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+}
+
+.ai-generate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.save-message {
+  font-size: 13px;
+  color: #2d7c6f;
+  margin: 0;
+}
+
 @media (max-width: 920px) {
   .app-shell,
   .practice-layout {

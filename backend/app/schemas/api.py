@@ -40,42 +40,17 @@ class QuestionOut(BaseModel):
     source_type: Literal["homework", "ai", "sample", "manual"] = "manual"
     source_label: str = "人工维护"
     explanation: str | None = None
+    likes: int = 0
+    user_liked: bool = False
+    ai_status: str | None = None
+    quality_score: int = 0
 
 
 class QuestionReviewOut(QuestionOut):
     answer: Any
 
 
-class QuestionAdminOut(QuestionOut):
-    answer_json: Any
-    rubric_json: Any
-    is_ai_generated: bool
-    is_reviewed: bool
-    source_assignment: str | None
-    source_context: str | None
-    created_at: datetime
-    updated_at: datetime
-
-
-class QuestionAdminListOut(BaseModel):
-    items: list[QuestionAdminOut]
-    total: int
-
-
-class QuestionUpdate(BaseModel):
-    chapter_id: int | None = None
-    type: QuestionType | None = None
-    difficulty: Literal["easy", "medium", "hard"] | None = None
-    stem: str | None = None
-    options_json: Any | None = None
-    answer_json: Any | None = None
-    rubric_json: Any | None = None
-    explanation: str | None = None
-    is_ai_generated: bool | None = None
-    is_reviewed: bool | None = None
-
-
-SourceScope = Literal["original_only", "include_ai"]
+SourceScope = Literal["original_only", "standard", "supplement"]
 
 
 class PracticeCreate(BaseModel):
@@ -83,7 +58,7 @@ class PracticeCreate(BaseModel):
     chapter_id: int | None = None
     question_count: int = Field(default=5, ge=1, le=30)
     question_types: list[QuestionType] | None = None
-    source_scope: SourceScope = "original_only"
+    source_scope: SourceScope = "standard"
     user_id: str = "demo"
 
 
@@ -150,8 +125,9 @@ class AiQuestionDraftCreate(BaseModel):
     chapter_id: int
     question_types: list[QuestionType] = Field(default_factory=lambda: ["single_choice"])
     difficulty: Literal["easy", "medium", "hard"] = "medium"
-    count: int = Field(default=3, ge=1, le=10)
+    count: int = Field(default=3, ge=1, le=5)
     focus: str | None = None
+    user_id: str = "demo"
 
 
 class AiQuestionDraftOut(BaseModel):
@@ -180,3 +156,23 @@ class KnowledgeChunkOut(BaseModel):
 class KnowledgeSearchOut(BaseModel):
     items: list[KnowledgeChunkOut]
     total: int
+
+
+class QuestionFeedbackCreate(BaseModel):
+    feedback_type: Literal["helpful", "not_helpful", "flag"]
+    reason: str | None = None  # flag reasons: answer_error, unclear_stem, ambiguous_options, out_of_scope, duplicate, unclear_explanation
+
+
+class QuestionFeedbackOut(BaseModel):
+    question_id: int
+    likes: int
+    unhelpful: int
+    flags: int
+    user_liked: bool
+    ai_status: str | None = None
+    quality_score: int = 0
+
+
+class AiStatusOut(BaseModel):
+    enabled: bool
+    daily_remaining: int

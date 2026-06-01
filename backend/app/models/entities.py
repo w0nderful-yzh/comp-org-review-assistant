@@ -72,6 +72,14 @@ class Question(Base):
     source_assignment: Mapped[Optional[str]] = mapped_column(Text)
     is_ai_generated: Mapped[bool] = mapped_column(Boolean)
     is_reviewed: Mapped[bool] = mapped_column(Boolean)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    ai_status: Mapped[Optional[str]] = mapped_column(Text)  # temporary/candidate/community_approved/verified/flagged/archived
+    quality_score: Mapped[int] = mapped_column(Integer, default=0)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    helpful_count: Mapped[int] = mapped_column(Integer, default=0)
+    not_helpful_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    flag_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -137,3 +145,16 @@ class KnowledgeChunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     chapter: Mapped[Chapter] = relationship()
+
+
+class QuestionFeedback(Base):
+    __tablename__ = "question_feedback"
+    __table_args__ = (UniqueConstraint("user_id", "question_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[str] = mapped_column(Text)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    is_helpful: Mapped[bool] = mapped_column(Boolean)
+    feedback_type: Mapped[Optional[str]] = mapped_column(Text)  # helpful/not_helpful/flag
+    reason: Mapped[Optional[str]] = mapped_column(Text)  # flag reasons
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

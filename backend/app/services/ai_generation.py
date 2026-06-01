@@ -76,7 +76,7 @@ def build_generation_prompt(
     )
     focus = payload.focus.strip() if payload.focus else "本章核心概念、易错点和计算方法"
     return f"""
-你是计算机组成原理课程的助教。请根据给定知识块生成中文复习题。
+你是《计算机组成原理》课程助教。请只根据给定知识块生成复习题，不要引入知识块之外的内容。
 
 章节：第 {chapter.order_index} 章《{chapter.title}》
 关注点：{focus}
@@ -93,18 +93,23 @@ def build_generation_prompt(
     {{
       "type": "single_choice | multiple_choice | true_false | fill_blank | short_answer | calculation",
       "difficulty": "easy | medium | hard",
+      "knowledge_points": ["相关知识点"],
       "stem": "题干",
       "options": [{{"key": "A", "text": "选项内容"}}],
       "answer": "A 或 [\\"A\\", \\"C\\"] 或 TRUE/FALSE",
       "blanks": [{{"index": 1, "answer": "标准答案", "acceptable_answers": ["可接受答案"]}}],
       "reference_answer": "简答/计算题参考答案",
       "rubric": ["评分点1", "评分点2"],
-      "explanation": "解析"
+      "explanation": "解析，说明答案为什么正确"
     }}
   ]
 }}
 
-规则：
+严格规则：
+- 只根据给定知识块生成，不要编造知识块中没有的概念。
+- 答案必须唯一，不能有争议。
+- 解析必须说明答案为什么正确，选择题需解释其他选项为什么不合适。
+- 不要生成超纲题、偏题、纯记忆刁钻题。
 - 单选/多选必须提供 options，答案只能使用选项 key。
 - 判断题 answer 只能是 TRUE 或 FALSE。
 - 填空题使用 blanks，不要使用 options。

@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 
 from app.core.database import SessionLocal
 from app.main import app
-from app.models.entities import AnswerRecord, Chapter, PracticeSession, Question, WrongQuestion
+from app.models.entities import AnswerRecord, Chapter, PracticeSession, Question, QuestionFeedback, WrongQuestion
 
 
 client = TestClient(app)
@@ -23,6 +23,7 @@ def cleanup_test_data(chapter_id: int, user_id: str) -> None:
             db.execute(delete(PracticeSession).where(PracticeSession.id.in_(session_ids)))
         question_ids = list(db.scalars(select(Question.id).where(Question.chapter_id == chapter_id)).all())
         if question_ids:
+            db.execute(delete(QuestionFeedback).where(QuestionFeedback.question_id.in_(question_ids)))
             db.execute(delete(WrongQuestion).where(WrongQuestion.question_id.in_(question_ids)))
             db.execute(delete(Question).where(Question.id.in_(question_ids)))
         db.execute(delete(Chapter).where(Chapter.id == chapter_id))
@@ -92,6 +93,7 @@ def seed_source_question(chapter_id: int, source_context: str, source_assignment
             source_assignment=source_assignment,
             is_ai_generated=is_ai_generated,
             is_reviewed=True,
+            ai_status="verified" if is_ai_generated else None,
         )
         db.add(question)
         db.commit()
@@ -160,7 +162,7 @@ def test_wrong_question_count_and_mastered_flow() -> None:
         cleanup_test_data(chapter_id, user_id)
 
 
-def test_question_source_labels_and_admin_filter() -> None:
+def test_question_source_labels() -> None:
     homework_chapter_id = 901
     ai_chapter_id = 902
     user_id = f"pytest-{uuid4()}"
@@ -181,22 +183,6 @@ def test_question_source_labels_and_admin_filter() -> None:
             True,
         )
 
-        homework_response = client.get("/api/admin/questions?source_type=homework&keyword=pytest 来源题 901")
-        assert homework_response.status_code == 200
-        homework_items = homework_response.json()["items"]
-        assert len(homework_items) == 1
-        assert homework_items[0]["id"] == homework_id
-        assert homework_items[0]["source_type"] == "homework"
-        assert homework_items[0]["source_label"] == "作业原题"
-
-        ai_response = client.get("/api/admin/questions?source_type=ai&keyword=pytest 来源题 902")
-        assert ai_response.status_code == 200
-        ai_items = ai_response.json()["items"]
-        assert len(ai_items) == 1
-        assert ai_items[0]["id"] == ai_id
-        assert ai_items[0]["source_type"] == "ai"
-        assert ai_items[0]["source_label"] == "AI生成"
-
         practice_response = client.post(
             "/api/practice-sessions",
             json={"mode": "chapter", "chapter_id": homework_chapter_id, "question_count": 1, "user_id": user_id},
@@ -205,6 +191,15 @@ def test_question_source_labels_and_admin_filter() -> None:
         question = practice_response.json()["questions"][0]
         assert question["source_type"] == "homework"
         assert question["source_label"] == "作业原题"
+
+        ai_practice_response = client.post(
+            "/api/practice-sessions",
+            json={"mode": "chapter", "chapter_id": ai_chapter_id, "question_count": 1, "user_id": user_id},
+        )
+        assert ai_practice_response.status_code == 200
+        ai_question = ai_practice_response.json()["questions"][0]
+        assert ai_question["source_type"] == "ai"
+        assert "AI" in ai_question["source_label"]
     finally:
         cleanup_test_data(homework_chapter_id, user_id)
         cleanup_test_data(ai_chapter_id, user_id)
@@ -244,18 +239,57 @@ def test_practice_source_scope_can_exclude_or_include_ai_questions() -> None:
         assert [question["id"] for question in original_questions] == [original_id]
         assert all(question["source_type"] != "ai" for question in original_questions)
 
-        include_ai_response = client.post(
+        standard_response = client.post(
             "/api/practice-sessions",
             json={
                 "mode": "chapter",
                 "chapter_id": chapter_id,
                 "question_count": 2,
-                "source_scope": "include_ai",
+                "source_scope": "standard",
                 "user_id": user_id,
             },
         )
-        assert include_ai_response.status_code == 200
-        mixed_ids = {question["id"] for question in include_ai_response.json()["questions"]}
+        assert standard_response.status_code == 200
+        mixed_ids = {question["id"] for question in standard_response.json()["questions"]}
         assert mixed_ids == {original_id, ai_id}
+    finally:
+        cleanup_test_data(chapter_id, user_id)
+
+
+def test_question_feedback_like_and_unhelpful() -> None:
+    chapter_id = 904
+    user_id = f"pytest-{uuid4()}"
+    cleanup_test_data(chapter_id, user_id)
+
+    try:
+        question_id = seed_test_question(chapter_id)
+
+        like_response = client.post(
+            f"/api/questions/{question_id}/feedback?user_id={user_id}",
+            json={"feedback_type": "helpful"},
+        )
+        assert like_response.status_code == 200
+        assert like_response.json()["likes"] == 1
+        assert like_response.json()["user_liked"] is True
+
+        practice_response = client.post(
+            "/api/practice-sessions",
+            json={"mode": "chapter", "chapter_id": chapter_id, "question_count": 1, "user_id": user_id},
+        )
+        assert practice_response.status_code == 200
+        q = practice_response.json()["questions"][0]
+        assert q["likes"] == 1
+        assert q["user_liked"] is True
+
+        unlike_response = client.delete(f"/api/questions/{question_id}/feedback?user_id={user_id}")
+        assert unlike_response.status_code == 200
+
+        unhelpful_response = client.post(
+            f"/api/questions/{question_id}/feedback?user_id={user_id}",
+            json={"feedback_type": "not_helpful"},
+        )
+        assert unhelpful_response.status_code == 200
+        assert unhelpful_response.json()["likes"] == 0
+        assert unhelpful_response.json()["unhelpful"] == 1
     finally:
         cleanup_test_data(chapter_id, user_id)

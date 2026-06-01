@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ai_base_url: str = "https://api.openai.com/v1"
     ai_model: str = "gpt-4.1-mini"
     ai_request_timeout: float = 45.0
+    ai_enabled: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

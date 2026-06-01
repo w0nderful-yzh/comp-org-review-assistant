@@ -143,12 +143,16 @@
                 </button>
               </div>
 
-              <input
-                v-else-if="question.type === 'fill_blank' || question.type === 'cloze'"
-                v-model="answers[question.id]"
-                class="text-answer"
-                placeholder="输入填空答案"
-              />
+              <div v-else-if="question.type === 'fill_blank' || question.type === 'cloze'" class="blank-grid">
+                <input
+                  v-for="blankIndex in blankCount(question)"
+                  :key="blankIndex"
+                  :value="blankAnswer(question.id, blankIndex - 1)"
+                  class="text-answer"
+                  :placeholder="`第 ${blankIndex} 空`"
+                  @input="setBlankAnswer(question.id, blankIndex - 1, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
 
               <textarea
                 v-else
@@ -241,7 +245,7 @@ import {
   RotateCcw,
   Shuffle,
 } from "@lucide/vue";
-import { api, type AnswerResult, type Chapter, type ChapterStatistics, type PracticeResult, type PracticeSession, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
+import { api, type AnswerResult, type Chapter, type ChapterStatistics, type PracticeResult, type PracticeSession, type Question, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
 
 const chapters = ref<Chapter[]>([]);
 const session = ref<PracticeSession | null>(null);
@@ -316,6 +320,21 @@ function toggleMulti(questionId: number, key: string) {
   answers[questionId] = Array.from(current).sort();
 }
 
+function blankCount(question: Question) {
+  return Math.max(question.blank_count || 1, 1);
+}
+
+function blankAnswer(questionId: number, index: number) {
+  const value = answers[questionId];
+  return Array.isArray(value) ? value[index] ?? "" : "";
+}
+
+function setBlankAnswer(questionId: number, index: number, value: string) {
+  const current = Array.isArray(answers[questionId]) ? [...(answers[questionId] as string[])] : [];
+  current[index] = value;
+  answers[questionId] = current;
+}
+
 function formatAnswer(value: unknown) {
   if (Array.isArray(value)) {
     return value.map((item) => (typeof item === "object" && item !== null && "answer" in item ? item.answer : item)).join("、");
@@ -361,7 +380,9 @@ async function submitPractice() {
       question_id: question.id,
       user_answer:
         question.type === "fill_blank" || question.type === "cloze"
-          ? [answers[question.id] ?? ""]
+          ? Array.isArray(answers[question.id])
+            ? answers[question.id]
+            : [answers[question.id] ?? ""]
           : answers[question.id] ?? "",
     }));
     result.value = await api.submitPractice(session.value.id, submitted);

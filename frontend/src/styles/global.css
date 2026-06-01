@@ -340,6 +340,12 @@ button {
   gap: 8px;
 }
 
+.blank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
 .option-line {
   display: flex;
   gap: 10px;

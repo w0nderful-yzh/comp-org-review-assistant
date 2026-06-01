@@ -27,6 +27,9 @@ router = APIRouter(prefix="/api")
 
 
 def question_out(question: Question) -> QuestionOut:
+    blank_count = 0
+    if question.type in {"fill_blank", "cloze"} and isinstance(question.answer_json, dict):
+        blank_count = len(question.answer_json.get("blanks", []))
     return QuestionOut(
         id=question.id,
         chapter_id=question.chapter_id,
@@ -34,6 +37,7 @@ def question_out(question: Question) -> QuestionOut:
         difficulty=question.difficulty,
         stem=question.stem,
         options=question.options_json,
+        blank_count=blank_count,
         explanation=question.explanation,
     )
 

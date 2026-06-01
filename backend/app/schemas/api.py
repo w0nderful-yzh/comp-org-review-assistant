@@ -36,6 +36,7 @@ class QuestionOut(BaseModel):
     difficulty: str
     stem: str
     options: Any
+    blank_count: int = 0
     explanation: str | None = None
 
 

@@ -14,6 +14,7 @@ export type Question = {
   difficulty: string;
   stem: string;
   options: Array<{ key: string; text: string }>;
+  blank_count: number;
   explanation?: string | null;
 };
 

@@ -23,7 +23,15 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 cd backend
 python scripts/seed_sample_questions.py
+python scripts/import_homework_questions.py
 uvicorn app.main:app --reload --port 8000
+```
+
+Preview the homework parser without writing to the database:
+
+```bash
+cd backend
+python scripts/import_homework_questions.py --dry-run
 ```
 
 ## Start Frontend

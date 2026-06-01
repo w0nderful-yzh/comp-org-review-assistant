@@ -1,8 +1,17 @@
 :root {
-  color: #24302f;
-  background: #f5f7f2;
+  --ink: #24302f;
+  --paper: #f6f3ea;
+  --paper-line: rgb(45 124 111 / 8%);
+  --panel: #fffdf8;
+  --muted: #69706c;
+  --rule: #d9dfd2;
+  --teal: #2d7c6f;
+  --gold: #f0c96a;
+  --brick: #b74343;
+  color: var(--ink);
+  background: var(--paper);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Avenir Next", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 }
 
 * {
@@ -29,6 +38,11 @@ button {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  background:
+    linear-gradient(var(--paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px),
+    var(--paper);
+  background-size: 28px 28px;
 }
 
 .sidebar {
@@ -37,7 +51,10 @@ button {
   gap: 24px;
   padding: 24px;
   color: #f7f2ea;
-  background: #24302f;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 5%) 0 1px, transparent 1px 12px),
+    var(--ink);
+  background-size: 14px 14px;
 }
 
 .brand {
@@ -59,6 +76,7 @@ button {
 
 .brand h1 {
   margin: 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
   font-size: 17px;
   line-height: 1.25;
 }
@@ -141,6 +159,7 @@ button {
 
 .topbar h2 {
   margin: 4px 0 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
   font-size: 28px;
   line-height: 1.2;
 }
@@ -154,7 +173,7 @@ button {
 .icon-button {
   width: 42px;
   height: 42px;
-  color: #24302f;
+  color: var(--ink);
   background: #e4eadd;
 }
 
@@ -184,8 +203,9 @@ button {
   padding: 14px;
   color: #24302f;
   text-align: left;
-  background: #ffffff;
-  border: 1px solid #dce2d7;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  box-shadow: 0 8px 22px rgb(36 48 47 / 5%);
 }
 
 .chapter-row div {
@@ -218,7 +238,7 @@ button {
 .notice {
   border: 1px solid #dce2d7;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--panel);
 }
 
 .practice-panel {
@@ -251,7 +271,7 @@ button {
   border-radius: 8px;
   padding: 9px 10px;
   color: #24302f;
-  background: #fbfcf8;
+  background: #fffef9;
 }
 
 .primary-button,
@@ -259,7 +279,7 @@ button {
   min-height: 42px;
   padding: 0 16px;
   color: #ffffff;
-  background: #2d7c6f;
+  background: var(--teal);
   font-weight: 800;
 }
 

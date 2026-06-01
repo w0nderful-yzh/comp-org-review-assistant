@@ -1,0 +1,344 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.models.entities import AnswerRecord, Chapter, PracticeSession, Question, WrongQuestion
+from app.schemas.api import (
+    AnswerResult,
+    ChapterOut,
+    ChapterStatistics,
+    PracticeCreate,
+    PracticeOut,
+    PracticeResult,
+    PracticeSubmit,
+    QuestionOut,
+    QuestionReviewOut,
+    StatisticsOverview,
+    WrongQuestionOut,
+)
+from app.services.grading import grade_answer, public_answer
+
+router = APIRouter(prefix="/api")
+
+
+def question_out(question: Question) -> QuestionOut:
+    return QuestionOut(
+        id=question.id,
+        chapter_id=question.chapter_id,
+        type=question.type,
+        difficulty=question.difficulty,
+        stem=question.stem,
+        options=question.options_json,
+        explanation=question.explanation,
+    )
+
+
+def question_review_out(question: Question) -> QuestionReviewOut:
+    base = question_out(question).model_dump()
+    return QuestionReviewOut(**base, answer=public_answer(question.answer_json))
+
+
+@router.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@router.get("/chapters", response_model=list[ChapterOut])
+def list_chapters(db: Session = Depends(get_db)) -> list[ChapterOut]:
+    counts = dict(
+        db.execute(
+            select(Question.chapter_id, func.count(Question.id))
+            .where(Question.is_reviewed.is_(True))
+            .group_by(Question.chapter_id)
+        ).all()
+    )
+    chapters = db.scalars(select(Chapter).order_by(Chapter.order_index)).all()
+    return [
+        ChapterOut(
+            id=chapter.id,
+            title=chapter.title,
+            description=chapter.description,
+            order_index=chapter.order_index,
+            source_file=chapter.source_file,
+            question_count=counts.get(chapter.id, 0),
+        )
+        for chapter in chapters
+    ]
+
+
+@router.get("/chapters/{chapter_id}", response_model=ChapterOut)
+def get_chapter(chapter_id: int, db: Session = Depends(get_db)) -> ChapterOut:
+    chapter = db.get(Chapter, chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    count = db.scalar(
+        select(func.count(Question.id)).where(
+            Question.chapter_id == chapter_id,
+            Question.is_reviewed.is_(True),
+        )
+    )
+    return ChapterOut(
+        id=chapter.id,
+        title=chapter.title,
+        description=chapter.description,
+        order_index=chapter.order_index,
+        source_file=chapter.source_file,
+        question_count=count or 0,
+    )
+
+
+@router.get("/questions", response_model=list[QuestionReviewOut])
+def list_questions(
+    chapter_id: int | None = None,
+    question_type: str | None = None,
+    db: Session = Depends(get_db),
+) -> list[QuestionReviewOut]:
+    conditions = [Question.is_reviewed.is_(True)]
+    if chapter_id:
+        conditions.append(Question.chapter_id == chapter_id)
+    if question_type:
+        conditions.append(Question.type == question_type)
+    questions = db.scalars(select(Question).where(*conditions).order_by(Question.id)).all()
+    return [question_review_out(question) for question in questions]
+
+
+@router.post("/practice-sessions", response_model=PracticeOut)
+def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_db)) -> PracticeOut:
+    filters = [Question.is_reviewed.is_(True)]
+    if payload.mode == "chapter":
+        if not payload.chapter_id:
+            raise HTTPException(status_code=400, detail="chapter_id is required for chapter practice")
+        filters.append(Question.chapter_id == payload.chapter_id)
+    if payload.question_types:
+        filters.append(Question.type.in_(payload.question_types))
+    if payload.mode == "wrong_questions":
+        wrong_ids = select(WrongQuestion.question_id).where(
+            WrongQuestion.user_id == payload.user_id,
+            WrongQuestion.mastered.is_(False),
+        )
+        filters.append(Question.id.in_(wrong_ids))
+
+    questions = db.scalars(
+        select(Question)
+        .where(and_(*filters))
+        .order_by(func.random())
+        .limit(payload.question_count)
+    ).all()
+    if not questions:
+        raise HTTPException(status_code=404, detail="No reviewed questions available for this practice")
+
+    session = PracticeSession(
+        user_id=payload.user_id,
+        mode=payload.mode,
+        chapter_id=payload.chapter_id if payload.mode == "chapter" else None,
+        question_count=len(questions),
+    )
+    db.add(session)
+    db.flush()
+    for question in questions:
+        db.add(AnswerRecord(session_id=session.id, question_id=question.id, user_answer={}))
+    db.commit()
+    db.refresh(session)
+
+    return PracticeOut(
+        id=session.id,
+        mode=session.mode,
+        chapter_id=session.chapter_id,
+        question_count=session.question_count,
+        score=session.score,
+        started_at=session.started_at,
+        submitted_at=session.submitted_at,
+        questions=[question_out(question) for question in questions],
+    )
+
+
+@router.get("/practice-sessions/{session_id}", response_model=PracticeOut)
+def get_practice_session(session_id: int, db: Session = Depends(get_db)) -> PracticeOut:
+    session = db.get(PracticeSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+    questions = [answer.question for answer in session.answers]
+    return PracticeOut(
+        id=session.id,
+        mode=session.mode,
+        chapter_id=session.chapter_id,
+        question_count=session.question_count,
+        score=session.score,
+        started_at=session.started_at,
+        submitted_at=session.submitted_at,
+        questions=[question_out(question) for question in questions],
+    )
+
+
+@router.post("/practice-sessions/{session_id}/submit", response_model=PracticeResult)
+def submit_practice_session(
+    session_id: int,
+    payload: PracticeSubmit,
+    db: Session = Depends(get_db),
+) -> PracticeResult:
+    session = db.get(PracticeSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+
+    answers_by_question = {answer.question_id: answer.user_answer for answer in payload.answers}
+    records = db.scalars(select(AnswerRecord).where(AnswerRecord.session_id == session_id)).all()
+    results: list[AnswerResult] = []
+
+    total_score = 0.0
+    for record in records:
+        question = record.question
+        user_answer = answers_by_question.get(question.id, {})
+        is_correct, score, feedback = grade_answer(
+            question.type,
+            question.answer_json,
+            user_answer,
+            question.rubric_json,
+        )
+        record.user_answer = user_answer
+        record.is_correct = is_correct
+        record.score = score
+        record.feedback = feedback
+        total_score += score
+
+        if not is_correct:
+            wrong = db.scalar(
+                select(WrongQuestion).where(
+                    WrongQuestion.user_id == payload.user_id,
+                    WrongQuestion.question_id == question.id,
+                )
+            )
+            if wrong:
+                wrong.wrong_count += 1
+                wrong.last_wrong_at = datetime.now(timezone.utc)
+                wrong.mastered = False
+            else:
+                db.add(WrongQuestion(user_id=payload.user_id, question_id=question.id, wrong_count=1, mastered=False))
+
+        results.append(
+            AnswerResult(
+                question_id=question.id,
+                is_correct=is_correct,
+                score=round(score, 2),
+                feedback=feedback,
+                correct_answer=public_answer(question.answer_json),
+                explanation=question.explanation,
+            )
+        )
+
+    session.score = round(total_score, 2)
+    session.submitted_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return PracticeResult(
+        session_id=session.id,
+        score=round(total_score, 2),
+        total=len(records),
+        results=results,
+    )
+
+
+@router.get("/wrong-questions", response_model=list[WrongQuestionOut])
+def list_wrong_questions(
+    user_id: str = "demo",
+    mastered: bool | None = False,
+    db: Session = Depends(get_db),
+) -> list[WrongQuestionOut]:
+    conditions = [WrongQuestion.user_id == user_id]
+    if mastered is not None:
+        conditions.append(WrongQuestion.mastered.is_(mastered))
+    rows = db.scalars(select(WrongQuestion).where(*conditions).order_by(WrongQuestion.last_wrong_at.desc())).all()
+    return [
+        WrongQuestionOut(
+            id=row.id,
+            question=question_review_out(row.question),
+            wrong_count=row.wrong_count,
+            mastered=row.mastered,
+            last_wrong_at=row.last_wrong_at,
+        )
+        for row in rows
+    ]
+
+
+@router.post("/wrong-questions/{question_id}/mastered")
+def mark_wrong_question_mastered(
+    question_id: int,
+    user_id: str = "demo",
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    wrong = db.scalar(
+        select(WrongQuestion).where(
+            WrongQuestion.user_id == user_id,
+            WrongQuestion.question_id == question_id,
+        )
+    )
+    if not wrong:
+        raise HTTPException(status_code=404, detail="Wrong question not found")
+    wrong.mastered = True
+    db.commit()
+    return {"mastered": True}
+
+
+@router.get("/statistics/overview", response_model=StatisticsOverview)
+def statistics_overview(user_id: str = "demo", db: Session = Depends(get_db)) -> StatisticsOverview:
+    total_sessions = db.scalar(select(func.count(PracticeSession.id)).where(PracticeSession.user_id == user_id)) or 0
+    total_answers = db.scalar(
+        select(func.count(AnswerRecord.id)).join(PracticeSession).where(PracticeSession.user_id == user_id)
+    ) or 0
+    correct_answers = db.scalar(
+        select(func.count(AnswerRecord.id))
+        .join(PracticeSession)
+        .where(PracticeSession.user_id == user_id, AnswerRecord.is_correct.is_(True))
+    ) or 0
+    wrong_count = db.scalar(
+        select(func.count(WrongQuestion.id)).where(
+            WrongQuestion.user_id == user_id,
+            WrongQuestion.mastered.is_(False),
+        )
+    ) or 0
+    return StatisticsOverview(
+        total_sessions=total_sessions,
+        total_answers=total_answers,
+        correct_rate=round(correct_answers / total_answers, 4) if total_answers else 0,
+        wrong_question_count=wrong_count,
+    )
+
+
+@router.get("/statistics/chapters", response_model=list[ChapterStatistics])
+def chapter_statistics(user_id: str = "demo", db: Session = Depends(get_db)) -> list[ChapterStatistics]:
+    chapters = db.scalars(select(Chapter).order_by(Chapter.order_index)).all()
+    rows: list[ChapterStatistics] = []
+    for chapter in chapters:
+        answered = db.scalar(
+            select(func.count(AnswerRecord.id))
+            .join(PracticeSession)
+            .join(Question, Question.id == AnswerRecord.question_id)
+            .where(
+                PracticeSession.user_id == user_id,
+                Question.chapter_id == chapter.id,
+                or_(AnswerRecord.is_correct.is_(True), AnswerRecord.is_correct.is_(False)),
+            )
+        ) or 0
+        correct = db.scalar(
+            select(func.count(AnswerRecord.id))
+            .join(PracticeSession)
+            .join(Question, Question.id == AnswerRecord.question_id)
+            .where(
+                PracticeSession.user_id == user_id,
+                Question.chapter_id == chapter.id,
+                AnswerRecord.is_correct.is_(True),
+            )
+        ) or 0
+        rows.append(
+            ChapterStatistics(
+                chapter_id=chapter.id,
+                chapter_title=chapter.title,
+                answered=answered,
+                correct_rate=round(correct / answered, 4) if answered else 0,
+            )
+        )
+    return rows

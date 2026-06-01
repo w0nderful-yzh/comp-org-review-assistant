@@ -122,8 +122,8 @@ class ChapterStatistics(BaseModel):
 
 
 class AiQuestionDraftCreate(BaseModel):
-    chapter_id: int
-    question_types: list[QuestionType] = Field(default_factory=lambda: ["single_choice"])
+    chapter_id: int | None = None
+    question_types: list[QuestionType] = Field(default_factory=list)
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     count: int = Field(default=3, ge=1, le=5)
     focus: str | None = None

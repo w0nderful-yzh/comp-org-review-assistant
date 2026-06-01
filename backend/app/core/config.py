@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -22,7 +25,7 @@ class Settings(BaseSettings):
     ai_enabled: bool = True
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

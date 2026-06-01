@@ -163,10 +163,10 @@ export const api = {
     return request<KnowledgeSearch>(`/api/knowledge/search?${search.toString()}`);
   },
   createAiQuestionDrafts: (payload: {
-    chapter_id: number;
-    question_types: QuestionType[];
-    difficulty: "easy" | "medium" | "hard";
-    count: number;
+    chapter_id?: number | null;
+    question_types?: QuestionType[];
+    difficulty?: "easy" | "medium" | "hard";
+    count?: number;
     focus?: string | null;
   }) =>
     request<AiQuestionDraftResult>("/api/ai-question-drafts", {

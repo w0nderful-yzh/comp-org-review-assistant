@@ -440,13 +440,26 @@ def create_ai_question_drafts(
 
     actual_count = min(payload.count, 5, DAILY_AI_LIMIT - used)
 
-    chapter = db.get(Chapter, payload.chapter_id)
+    # Auto-select chapter if not provided: pick the one with fewest questions
+    chapter_id = payload.chapter_id
+    if chapter_id is None:
+        chapter_id = db.scalar(
+            select(Chapter.id)
+            .outerjoin(Question, Question.chapter_id == Chapter.id)
+            .group_by(Chapter.id)
+            .order_by(func.count(Question.id))
+            .limit(1)
+        )
+        if chapter_id is None:
+            raise HTTPException(status_code=404, detail="No chapters available")
+
+    chapter = db.get(Chapter, chapter_id)
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     chunks = db.scalars(
         select(KnowledgeChunk)
-        .where(KnowledgeChunk.chapter_id == payload.chapter_id)
+        .where(KnowledgeChunk.chapter_id == chapter_id)
         .order_by(KnowledgeChunk.chunk_id)
         .limit(12)
     ).all()
@@ -462,7 +475,7 @@ def create_ai_question_drafts(
     existing_stems = set(
         db.scalars(
             select(Question.stem)
-            .where(Question.chapter_id == payload.chapter_id, Question.archived.is_(False))
+            .where(Question.chapter_id == chapter_id, Question.archived.is_(False))
         ).all()
     )
 
@@ -529,25 +542,29 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
         filters.append(Question.id.in_(wrong_ids))
 
     if payload.source_scope == "standard" and payload.mode != "wrong_questions":
-        original_count = db.scalar(
-            select(func.count()).where(and_(*filters, Question.is_ai_generated.is_(False)))
+        ai_available = db.scalar(
+            select(func.count()).where(and_(*filters, Question.is_ai_generated.is_(True)))
         ) or 0
-        ai_count_needed = max(1, payload.question_count // 5)
+        ai_count_needed = min(max(1, payload.question_count // 5), ai_available) if ai_available > 0 else 0
         original_count_needed = payload.question_count - ai_count_needed
 
         original_questions = db.scalars(
             select(Question)
             .where(and_(*filters, Question.is_ai_generated.is_(False)))
             .order_by(func.random())
-            .limit(min(original_count_needed, original_count))
+            .limit(original_count_needed)
         ).all()
 
-        ai_questions = db.scalars(
-            select(Question)
-            .where(and_(*filters, Question.is_ai_generated.is_(True)))
-            .order_by(func.random())
-            .limit(ai_count_needed)
-        ).all()
+        # Fill remaining slots with original if not enough AI
+        shortfall = original_count_needed - len(original_questions)
+        ai_questions = []
+        if ai_count_needed > 0:
+            ai_questions = db.scalars(
+                select(Question)
+                .where(and_(*filters, Question.is_ai_generated.is_(True)))
+                .order_by(func.random())
+                .limit(ai_count_needed + shortfall)
+            ).all()
 
         questions = list(original_questions) + list(ai_questions)
         if not questions:
@@ -564,6 +581,10 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
 
     if not questions:
         raise HTTPException(status_code=404, detail="No questions available for this practice")
+
+    # Sort by type: 选择 → 判断 → 填空 → 其他
+    TYPE_ORDER = {"single_choice": 0, "multiple_choice": 1, "true_false": 2, "fill_blank": 3, "cloze": 3}
+    questions.sort(key=lambda q: TYPE_ORDER.get(q.type, 4))
 
     session = PracticeSession(
         user_id=payload.user_id,

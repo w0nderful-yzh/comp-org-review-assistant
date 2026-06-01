@@ -67,61 +67,96 @@
 
       <div v-if="aiEnabled" class="ai-generate-section">
         <button class="ai-generate-toggle" @click="showAiPanel = !showAiPanel">
-          <Sparkles :size="16" />
-          <span>专项补充练习</span>
-          <small>当原题不够，或你想针对某个知识点加强练习时，可以生成少量 AI 补充题。</small>
-          <ChevronRight :size="16" :class="{ rotated: showAiPanel }" />
+          <div class="ai-toggle-icon">
+            <Sparkles :size="16" />
+          </div>
+          <div class="ai-toggle-text">
+            <span>AI 补充出题</span>
+            <small>{{ aiChapterLabel }}</small>
+          </div>
+          <ChevronRight :size="14" class="ai-toggle-arrow" :class="{ rotated: showAiPanel }" />
         </button>
         <div v-if="showAiPanel" class="ai-generate-panel">
-          <div class="ai-generate-grid">
-            <label>
-              <span>章节</span>
-              <select v-model.number="aiForm.chapter_id">
-                <option v-for="chapter in chapters" :key="chapter.id" :value="chapter.id">
-                  第 {{ chapter.order_index }} 章：{{ chapter.title }}
-                </option>
-              </select>
-            </label>
-            <label>
-              <span>题型</span>
-              <select v-model="aiForm.type">
-                <option value="single_choice">单选题</option>
-                <option value="multiple_choice">多选题</option>
-                <option value="true_false">判断题</option>
-                <option value="fill_blank">填空题</option>
-                <option value="short_answer">简答题</option>
-                <option value="calculation">计算题</option>
-              </select>
-            </label>
-            <label>
-              <span>难度</span>
+          <div class="ai-panel-context">
+            <span class="ai-context-label">生成范围</span>
+            <strong>{{ aiChapterLabel }}</strong>
+          </div>
+          <div class="ai-form-row">
+            <div class="ai-form-field">
+              <label>题型</label>
+              <div class="ai-type-chips">
+                <button
+                  :class="{ active: aiForm.type === '' }"
+                  @click="aiForm.type = ''"
+                >随机</button>
+                <button
+                  :class="{ active: aiForm.type === 'single_choice' }"
+                  @click="aiForm.type = 'single_choice'"
+                >单选</button>
+                <button
+                  :class="{ active: aiForm.type === 'multiple_choice' }"
+                  @click="aiForm.type = 'multiple_choice'"
+                >多选</button>
+                <button
+                  :class="{ active: aiForm.type === 'true_false' }"
+                  @click="aiForm.type = 'true_false'"
+                >判断</button>
+                <button
+                  :class="{ active: aiForm.type === 'fill_blank' }"
+                  @click="aiForm.type = 'fill_blank'"
+                >填空</button>
+                <button
+                  :class="{ active: aiForm.type === 'short_answer' }"
+                  @click="aiForm.type = 'short_answer'"
+                >简答</button>
+              </div>
+            </div>
+            <div class="ai-form-field ai-form-compact">
+              <label>难度</label>
               <select v-model="aiForm.difficulty">
                 <option value="easy">基础</option>
                 <option value="medium">中等</option>
                 <option value="hard">提高</option>
               </select>
-            </label>
-            <label>
-              <span>数量</span>
-              <input v-model.number="aiForm.count" type="number" min="1" max="5" />
-            </label>
+            </div>
+            <div class="ai-form-field ai-form-compact">
+              <label>数量</label>
+              <div class="ai-count-stepper">
+                <button @click="aiForm.count = Math.max(1, aiForm.count - 1)">−</button>
+                <span>{{ aiForm.count }}</span>
+                <button @click="aiForm.count = Math.min(5, aiForm.count + 1)">+</button>
+              </div>
+            </div>
           </div>
-          <label>
-            <span>关注点（可选）</span>
-            <input v-model="aiForm.focus" placeholder="例如 Cache 命中率、流水线冒险、补码运算" />
-          </label>
-          <div class="ai-generate-actions">
-            <button class="primary-button" :disabled="aiLoading" @click="generateAiQuestions">
-              <Sparkles :size="18" />
-              <span>{{ aiLoading ? "生成中..." : "生成补充题" }}</span>
+          <div class="ai-form-field">
+            <label>关注点 <span class="ai-optional">可选</span></label>
+            <input
+              v-model="aiForm.focus"
+              class="ai-focus-input"
+              placeholder="例如 Cache 命中率、流水线冒险、补码运算"
+            />
+          </div>
+          <div class="ai-actions">
+            <button
+              class="ai-generate-btn"
+              :disabled="aiLoading"
+              @click="generateAiQuestions"
+            >
+              <Sparkles :size="15" />
+              <span>{{ aiLoading ? "正在生成..." : "生成补充题" }}</span>
             </button>
-            <small v-if="aiDailyRemaining >= 0">今日剩余 {{ aiDailyRemaining }} 道</small>
+            <span class="ai-remaining" v-if="aiDailyRemaining >= 0">
+              今日剩余 {{ aiDailyRemaining }} 道
+            </span>
           </div>
-          <p v-if="aiMessage" class="save-message">{{ aiMessage }}</p>
+          <p v-if="aiMessage" class="ai-message" :class="{ error: aiMessage.includes('失败') || aiMessage.includes('错误') }">
+            {{ aiMessage }}
+          </p>
         </div>
       </div>
       <div v-else class="ai-disabled-notice">
-        当前未配置 AI 服务，补充练习功能不可用。
+        <Sparkles :size="14" />
+        <span>AI 服务未配置，补充练习暂不可用</span>
       </div>
 
       <div v-if="session" class="question-stack">
@@ -306,11 +341,19 @@ const aiMessage = ref("");
 const flagPanelQuestionId = ref<number | null>(null);
 
 const aiForm = reactive({
-  chapter_id: 1,
-  type: "single_choice" as QuestionType,
+  type: "" as QuestionType | "",
   difficulty: "medium" as "easy" | "medium" | "hard",
   count: 3,
   focus: "",
+});
+
+const aiChapterLabel = computed(() => {
+  if (practiceMode.value === "final_review") return "跨章节随机生成";
+  if (selectedChapterId.value) {
+    const ch = chapters.value.find((c) => c.id === selectedChapterId.value);
+    if (ch) return `第 ${ch.order_index} 章：${ch.title}`;
+  }
+  return "自动选择题目最少的章节";
 });
 
 const answers = reactive<Record<number, string | string[]>>({});
@@ -334,7 +377,6 @@ const resultByQuestion = computed<Record<number, AnswerResult>>(() => {
 
 function selectChapter(chapterId: number) {
   selectedChapterId.value = chapterId;
-  aiForm.chapter_id = chapterId;
   practiceMode.value = "chapter";
   session.value = null;
   result.value = null;
@@ -488,13 +530,13 @@ async function generateAiQuestions() {
   aiMessage.value = "";
   try {
     const result = await api.createAiQuestionDrafts({
-      chapter_id: aiForm.chapter_id,
-      question_types: [aiForm.type],
+      chapter_id: practiceMode.value === "chapter" ? selectedChapterId.value : undefined,
+      question_types: aiForm.type ? [aiForm.type] : undefined,
       difficulty: aiForm.difficulty,
       count: aiForm.count,
       focus: aiForm.focus.trim() || null,
     });
-    aiMessage.value = `已生成 ${result.created} 道补充题，可通过"专项补充"模式练习`;
+    aiMessage.value = `已生成 ${result.created} 道补充题，切换到"专项补充"模式即可练习`;
     aiDailyRemaining.value = Math.max(0, aiDailyRemaining.value - result.created);
     emit("refresh");
   } catch (err) {

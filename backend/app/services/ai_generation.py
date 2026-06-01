@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -50,7 +51,7 @@ def generate_question_drafts(
 
     requested_types = [item for item in payload.question_types if item in SUPPORTED_GENERATION_TYPES]
     if not requested_types:
-        raise AiGenerationError("No supported question types selected")
+        requested_types = random.sample(sorted(SUPPORTED_GENERATION_TYPES), k=min(3, len(SUPPORTED_GENERATION_TYPES)))
 
     prompt = build_generation_prompt(payload, chapter, chunks, requested_types)
     response_payload = call_chat_completion(prompt, settings)
@@ -177,7 +178,8 @@ def normalize_question(
     chapter: Chapter,
     chunks: list[KnowledgeChunk],
 ) -> GeneratedQuestionDraft:
-    question_type = str(raw.get("type") or payload.question_types[0]).strip()
+    fallback_type = payload.question_types[0] if payload.question_types else "single_choice"
+    question_type = str(raw.get("type") or fallback_type).strip()
     if question_type not in SUPPORTED_GENERATION_TYPES:
         raise AiGenerationError(f"Unsupported generated question type: {question_type}")
     difficulty = str(raw.get("difficulty") or payload.difficulty).strip()

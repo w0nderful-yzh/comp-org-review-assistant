@@ -94,6 +94,29 @@ export type ChapterStatistics = {
   correct_rate: number;
 };
 
+export type KnowledgePoint = {
+  id: number;
+  chapter_id: number;
+  name: string;
+  summary: string | null;
+  difficulty: string;
+};
+
+export type KnowledgeChunk = {
+  id: number;
+  chunk_id: string;
+  chapter_id: number;
+  title: string | null;
+  content: string;
+  source_file: string;
+  source_page: number | null;
+};
+
+export type KnowledgeSearch = {
+  items: KnowledgeChunk[];
+  total: number;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -113,6 +136,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   chapters: () => request<Chapter[]>("/api/chapters"),
+  knowledgePoints: (chapterId: number) => request<KnowledgePoint[]>(`/api/chapters/${chapterId}/knowledge-points`),
+  knowledgeChunks: (chapterId: number, limit = 30) =>
+    request<KnowledgeChunk[]>(`/api/chapters/${chapterId}/knowledge-chunks?limit=${limit}`),
+  searchKnowledge: (params: { q: string; chapter_id?: number | null; limit?: number }) => {
+    const search = new URLSearchParams();
+    search.set("q", params.q);
+    if (params.chapter_id) search.set("chapter_id", String(params.chapter_id));
+    search.set("limit", String(params.limit ?? 8));
+    return request<KnowledgeSearch>(`/api/knowledge/search?${search.toString()}`);
+  },
   adminQuestions: (params: {
     chapter_id?: number | null;
     question_type?: QuestionType | "";

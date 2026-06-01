@@ -122,3 +122,18 @@ class WrongQuestion(Base):
     mastered: Mapped[bool] = mapped_column(Boolean)
 
     question: Mapped[Question] = relationship()
+
+
+class KnowledgeChunk(Base):
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"))
+    chunk_id: Mapped[str] = mapped_column(Text)
+    title: Mapped[Optional[str]] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(Text)
+    source_file: Mapped[str] = mapped_column(Text)
+    source_page: Mapped[Optional[int]] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    chapter: Mapped[Chapter] = relationship()

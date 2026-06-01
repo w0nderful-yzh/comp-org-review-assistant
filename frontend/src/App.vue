@@ -22,6 +22,10 @@
           <BarChart3 :size="18" />
           <span>学习统计</span>
         </button>
+        <button :class="{ active: activeView === 'knowledge' }" @click="openKnowledge">
+          <FileText :size="18" />
+          <span>知识库</span>
+        </button>
         <button :class="{ active: activeView === 'admin' }" @click="openAdmin">
           <ClipboardList :size="18" />
           <span>题库维护</span>
@@ -373,6 +377,62 @@
         </div>
       </section>
 
+      <section v-else-if="activeView === 'knowledge'" class="knowledge-layout">
+        <div class="knowledge-panel">
+          <div class="admin-filters">
+            <label>
+              <span>章节</span>
+              <select v-model.number="knowledgeChapterId" @change="loadKnowledge">
+                <option v-for="chapter in chapters" :key="chapter.id" :value="chapter.id">
+                  第 {{ chapter.order_index }} 章：{{ chapter.title }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>检索</span>
+              <input v-model="knowledgeQuery" placeholder="例如 Cache、CPI、寻址方式" @keyup.enter="searchKnowledge" />
+            </label>
+            <button class="primary-button" :disabled="loading" @click="searchKnowledge">
+              <Search :size="18" />
+              <span>搜索知识块</span>
+            </button>
+          </div>
+
+          <div class="knowledge-summary">
+            <strong>{{ knowledgePoints.length }}</strong>
+            <span>个知识点</span>
+            <strong>{{ knowledgeChunks.length }}</strong>
+            <span>个知识块</span>
+          </div>
+
+          <div class="knowledge-point-list">
+            <article v-for="point in knowledgePoints" :key="point.id" class="knowledge-point">
+              <strong>{{ point.name }}</strong>
+              <p>{{ point.summary }}</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="knowledge-panel">
+          <div class="section-title">
+            <p class="eyebrow">{{ knowledgeQuery ? "Search Results" : "Chapter Context" }}</p>
+            <h3>{{ knowledgeQuery ? `“${knowledgeQuery}”` : "章节知识块" }}</h3>
+          </div>
+          <article v-for="chunk in activeKnowledgeChunks" :key="chunk.id" class="knowledge-chunk">
+            <div class="chunk-meta">
+              <span>{{ chunk.chunk_id }}</span>
+              <small>{{ chunk.source_file }}</small>
+            </div>
+            <strong>{{ chunk.title }}</strong>
+            <p>{{ chunk.content }}</p>
+          </article>
+          <div v-if="!activeKnowledgeChunks.length" class="empty-state">
+            <FileText :size="38" />
+            <p>当前没有匹配的知识块。</p>
+          </div>
+        </div>
+      </section>
+
       <section v-else class="stats-grid">
         <article class="stat-card">
           <span>作答题数</span>
@@ -410,6 +470,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
+  FileText,
   GraduationCap,
   Play,
   RefreshCw,
@@ -418,7 +479,7 @@ import {
   Search,
   Shuffle,
 } from "@lucide/vue";
-import { api, type AnswerResult, type Chapter, type ChapterStatistics, type PracticeResult, type PracticeSession, type Question, type QuestionAdmin, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
+import { api, type AnswerResult, type Chapter, type ChapterStatistics, type KnowledgeChunk, type KnowledgePoint, type PracticeResult, type PracticeSession, type Question, type QuestionAdmin, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
 
 const chapters = ref<Chapter[]>([]);
 const session = ref<PracticeSession | null>(null);
@@ -427,9 +488,12 @@ const overview = ref<StatisticsOverview | null>(null);
 const chapterStats = ref<ChapterStatistics[]>([]);
 const wrongQuestions = ref<WrongQuestion[]>([]);
 const adminQuestions = ref<QuestionAdmin[]>([]);
+const knowledgePoints = ref<KnowledgePoint[]>([]);
+const knowledgeChunks = ref<KnowledgeChunk[]>([]);
+const knowledgeSearchResults = ref<KnowledgeChunk[]>([]);
 const adminTotal = ref(0);
 const editingQuestion = ref<QuestionAdmin | null>(null);
-const activeView = ref<"practice" | "wrong" | "stats" | "admin">("practice");
+const activeView = ref<"practice" | "wrong" | "stats" | "admin" | "knowledge">("practice");
 const practiceMode = ref<"chapter" | "final_review" | "wrong_questions">("chapter");
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
@@ -437,6 +501,8 @@ const adminChapterId = ref(0);
 const adminQuestionType = ref<QuestionType | "">("");
 const adminReviewed = ref<"" | "true" | "false">("");
 const adminKeyword = ref("");
+const knowledgeChapterId = ref(1);
+const knowledgeQuery = ref("");
 const adminMessage = ref("");
 const questionCount = ref(5);
 const loading = ref(false);
@@ -459,6 +525,7 @@ const viewTitle = computed(() => {
   if (activeView.value === "wrong") return "错题本";
   if (activeView.value === "stats") return "学习统计";
   if (activeView.value === "admin") return "题库维护";
+  if (activeView.value === "knowledge") return "课程知识库";
   if (practiceMode.value === "wrong_questions") return "错题重练";
   if (practiceMode.value === "final_review") return "总复习练习";
   const chapter = chapters.value.find((item) => item.id === selectedChapterId.value);
@@ -470,6 +537,8 @@ const resultByQuestion = computed<Record<number, AnswerResult>>(() => {
   for (const item of result.value?.results ?? []) rows[item.question_id] = item;
   return rows;
 });
+
+const activeKnowledgeChunks = computed(() => (knowledgeQuery.value ? knowledgeSearchResults.value : knowledgeChunks.value));
 
 function percent(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -579,6 +648,7 @@ async function refreshCurrent() {
   if (activeView.value === "wrong") await openWrongQuestions();
   else if (activeView.value === "stats") await openStats();
   else if (activeView.value === "admin") await loadAdminQuestions();
+  else if (activeView.value === "knowledge") await loadKnowledge();
   else await refreshAll();
 }
 
@@ -680,6 +750,52 @@ async function openStats() {
 async function openAdmin() {
   activeView.value = "admin";
   await loadAdminQuestions();
+}
+
+async function openKnowledge() {
+  activeView.value = "knowledge";
+  if (!knowledgeChapterId.value) knowledgeChapterId.value = chapters.value[0]?.id ?? 1;
+  await loadKnowledge();
+}
+
+async function loadKnowledge() {
+  loading.value = true;
+  error.value = "";
+  try {
+    const [points, chunks] = await Promise.all([
+      api.knowledgePoints(knowledgeChapterId.value),
+      api.knowledgeChunks(knowledgeChapterId.value, 50),
+    ]);
+    knowledgePoints.value = points;
+    knowledgeChunks.value = chunks;
+    if (!knowledgeQuery.value) knowledgeSearchResults.value = [];
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "加载知识库失败";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function searchKnowledge() {
+  if (!knowledgeQuery.value.trim()) {
+    knowledgeSearchResults.value = [];
+    await loadKnowledge();
+    return;
+  }
+  loading.value = true;
+  error.value = "";
+  try {
+    const result = await api.searchKnowledge({
+      q: knowledgeQuery.value.trim(),
+      chapter_id: knowledgeChapterId.value,
+      limit: 12,
+    });
+    knowledgeSearchResults.value = result.items;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "检索知识库失败";
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function loadAdminQuestions() {

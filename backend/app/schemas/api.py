@@ -137,3 +137,26 @@ class ChapterStatistics(BaseModel):
     chapter_title: str
     answered: int
     correct_rate: float
+
+
+class KnowledgePointOut(BaseModel):
+    id: int
+    chapter_id: int
+    name: str
+    summary: str | None
+    difficulty: str
+
+
+class KnowledgeChunkOut(BaseModel):
+    id: int
+    chunk_id: str
+    chapter_id: int
+    title: str | None
+    content: str
+    source_file: str
+    source_page: int | None
+
+
+class KnowledgeSearchOut(BaseModel):
+    items: list[KnowledgeChunkOut]
+    total: int

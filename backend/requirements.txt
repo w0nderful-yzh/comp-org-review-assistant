@@ -6,3 +6,4 @@ pydantic-settings==2.7.1
 eval-type-backport==0.2.2
 pytest==8.3.4
 httpx==0.28.1
+python-docx==1.1.2

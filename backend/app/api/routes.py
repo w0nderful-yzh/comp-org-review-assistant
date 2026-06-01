@@ -7,11 +7,14 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.entities import AnswerRecord, Chapter, PracticeSession, Question, WrongQuestion
+from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, WrongQuestion
 from app.schemas.api import (
     AnswerResult,
     ChapterOut,
     ChapterStatistics,
+    KnowledgeChunkOut,
+    KnowledgePointOut,
+    KnowledgeSearchOut,
     QuestionAdminListOut,
     QuestionAdminOut,
     QuestionUpdate,
@@ -65,6 +68,28 @@ def question_admin_out(question: Question) -> QuestionAdminOut:
     )
 
 
+def knowledge_point_out(point: KnowledgePoint) -> KnowledgePointOut:
+    return KnowledgePointOut(
+        id=point.id,
+        chapter_id=point.chapter_id,
+        name=point.name,
+        summary=point.summary,
+        difficulty=point.difficulty,
+    )
+
+
+def knowledge_chunk_out(chunk: KnowledgeChunk) -> KnowledgeChunkOut:
+    return KnowledgeChunkOut(
+        id=chunk.id,
+        chunk_id=chunk.chunk_id,
+        chapter_id=chunk.chapter_id,
+        title=chunk.title,
+        content=chunk.content,
+        source_file=chunk.source_file,
+        source_page=chunk.source_page,
+    )
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -112,6 +137,69 @@ def get_chapter(chapter_id: int, db: Session = Depends(get_db)) -> ChapterOut:
         source_file=chapter.source_file,
         question_count=count or 0,
     )
+
+
+@router.get("/chapters/{chapter_id}/knowledge-points", response_model=list[KnowledgePointOut])
+def list_knowledge_points(chapter_id: int, db: Session = Depends(get_db)) -> list[KnowledgePointOut]:
+    chapter = db.get(Chapter, chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    points = db.scalars(
+        select(KnowledgePoint)
+        .where(KnowledgePoint.chapter_id == chapter_id)
+        .order_by(KnowledgePoint.id)
+    ).all()
+    return [knowledge_point_out(point) for point in points]
+
+
+@router.get("/chapters/{chapter_id}/knowledge-chunks", response_model=list[KnowledgeChunkOut])
+def list_knowledge_chunks(
+    chapter_id: int,
+    limit: int = 80,
+    db: Session = Depends(get_db),
+) -> list[KnowledgeChunkOut]:
+    chapter = db.get(Chapter, chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    limit = min(max(limit, 1), 200)
+    chunks = db.scalars(
+        select(KnowledgeChunk)
+        .where(KnowledgeChunk.chapter_id == chapter_id)
+        .order_by(KnowledgeChunk.chunk_id)
+        .limit(limit)
+    ).all()
+    return [knowledge_chunk_out(chunk) for chunk in chunks]
+
+
+@router.get("/knowledge/search", response_model=KnowledgeSearchOut)
+def search_knowledge(
+    q: str,
+    chapter_id: int | None = None,
+    limit: int = 8,
+    db: Session = Depends(get_db),
+) -> KnowledgeSearchOut:
+    query = q.strip()
+    if not query:
+        return KnowledgeSearchOut(items=[], total=0)
+
+    limit = min(max(limit, 1), 30)
+    conditions = [
+        or_(
+            KnowledgeChunk.title.ilike(f"%{query}%"),
+            KnowledgeChunk.content.ilike(f"%{query}%"),
+        )
+    ]
+    if chapter_id:
+        conditions.append(KnowledgeChunk.chapter_id == chapter_id)
+
+    total = db.scalar(select(func.count(KnowledgeChunk.id)).where(*conditions)) or 0
+    chunks = db.scalars(
+        select(KnowledgeChunk)
+        .where(*conditions)
+        .order_by(KnowledgeChunk.chapter_id, KnowledgeChunk.chunk_id)
+        .limit(limit)
+    ).all()
+    return KnowledgeSearchOut(items=[knowledge_chunk_out(chunk) for chunk in chunks], total=total)
 
 
 @router.get("/questions", response_model=list[QuestionReviewOut])

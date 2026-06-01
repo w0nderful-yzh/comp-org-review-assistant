@@ -112,8 +112,26 @@
               <span>练习 #{{ session.id }}</span>
               <strong v-if="result">得分 {{ result.score.toFixed(1) }} / {{ result.total }}</strong>
             </div>
+            <div class="review-strip">
+              <button
+                v-for="(question, index) in session.questions"
+                :key="question.id"
+                class="review-dot"
+                :class="reviewDotClass(question.id)"
+                :title="`第 ${index + 1} 题`"
+                @click="jumpToQuestion(question.id)"
+              >
+                {{ index + 1 }}
+              </button>
+            </div>
 
-            <article v-for="(question, index) in session.questions" :key="question.id" class="question-card">
+            <article
+              v-for="(question, index) in session.questions"
+              :id="`question-${question.id}`"
+              :key="question.id"
+              class="question-card"
+              :class="{ missing: unansweredQuestionIds.has(question.id) }"
+            >
               <div class="question-meta">
                 <span>{{ index + 1 }}</span>
                 <small>{{ typeLabel(question.type) }} · {{ difficultyLabel(question.difficulty) }}</small>
@@ -189,6 +207,16 @@
       </section>
 
       <section v-else-if="activeView === 'wrong'" class="data-grid">
+        <div v-if="wrongQuestions.length" class="wrong-toolbar">
+          <div>
+            <strong>{{ wrongQuestions.length }} 道待复习错题</strong>
+            <span>重新练习会从当前错题本抽题。</span>
+          </div>
+          <button class="primary-button" :disabled="loading" @click="startWrongPractice">
+            <RotateCcw :size="18" />
+            <span>重练错题</span>
+          </button>
+        </div>
         <article v-for="item in wrongQuestions" :key="item.id" class="question-card">
           <div class="question-meta">
             <span>{{ item.wrong_count }}</span>
@@ -402,7 +430,7 @@ const adminQuestions = ref<QuestionAdmin[]>([]);
 const adminTotal = ref(0);
 const editingQuestion = ref<QuestionAdmin | null>(null);
 const activeView = ref<"practice" | "wrong" | "stats" | "admin">("practice");
-const practiceMode = ref<"chapter" | "final_review">("chapter");
+const practiceMode = ref<"chapter" | "final_review" | "wrong_questions">("chapter");
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
 const adminChapterId = ref(0);
@@ -414,6 +442,7 @@ const questionCount = ref(5);
 const loading = ref(false);
 const error = ref("");
 const answers = reactive<Record<number, string | string[]>>({});
+const unansweredQuestionIds = ref<Set<number>>(new Set());
 const editForm = reactive({
   chapter_id: 1,
   type: "single_choice" as QuestionType,
@@ -430,6 +459,7 @@ const viewTitle = computed(() => {
   if (activeView.value === "wrong") return "错题本";
   if (activeView.value === "stats") return "学习统计";
   if (activeView.value === "admin") return "题库维护";
+  if (practiceMode.value === "wrong_questions") return "错题重练";
   if (practiceMode.value === "final_review") return "总复习练习";
   const chapter = chapters.value.find((item) => item.id === selectedChapterId.value);
   return chapter ? `第 ${chapter.order_index} 章：${chapter.title}` : "章节练习";
@@ -505,6 +535,30 @@ function setBlankAnswer(questionId: number, index: number, value: string) {
   answers[questionId] = current;
 }
 
+function isAnswered(question: Question) {
+  const answer = answers[question.id];
+  if (question.type === "multiple_choice") return Array.isArray(answer) && answer.length > 0;
+  if (question.type === "fill_blank" || question.type === "cloze") {
+    if (!Array.isArray(answer)) return false;
+    return answer.slice(0, blankCount(question)).every((item) => String(item ?? "").trim());
+  }
+  return String(answer ?? "").trim().length > 0;
+}
+
+function reviewDotClass(questionId: number) {
+  const resultItem = resultByQuestion.value[questionId];
+  return {
+    answered: session.value?.questions.some((question) => question.id === questionId && isAnswered(question)),
+    missing: unansweredQuestionIds.value.has(questionId),
+    correct: Boolean(resultItem?.is_correct),
+    wrong: Boolean(resultItem && !resultItem.is_correct),
+  };
+}
+
+function jumpToQuestion(questionId: number) {
+  document.getElementById(`question-${questionId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function formatAnswer(value: unknown) {
   if (Array.isArray(value)) {
     return value.map((item) => (typeof item === "object" && item !== null && "answer" in item ? item.answer : item)).join("、");
@@ -532,6 +586,7 @@ async function startPractice() {
   loading.value = true;
   error.value = "";
   result.value = null;
+  unansweredQuestionIds.value = new Set();
   Object.keys(answers).forEach((key) => delete answers[Number(key)]);
   try {
     session.value = await api.createPractice({
@@ -550,8 +605,16 @@ async function startPractice() {
 
 async function submitPractice() {
   if (!session.value) return;
+  const missing = session.value.questions.filter((question) => !isAnswered(question)).map((question) => question.id);
+  if (missing.length) {
+    unansweredQuestionIds.value = new Set(missing);
+    error.value = `还有 ${missing.length} 道题未作答，请补全后再提交。`;
+    jumpToQuestion(missing[0]);
+    return;
+  }
   loading.value = true;
   error.value = "";
+  unansweredQuestionIds.value = new Set();
   try {
     const submitted = session.value.questions.map((question) => ({
       question_id: question.id,
@@ -575,6 +638,29 @@ async function openWrongQuestions() {
   activeView.value = "wrong";
   error.value = "";
   wrongQuestions.value = await api.wrongQuestions();
+}
+
+async function startWrongPractice() {
+  loading.value = true;
+  error.value = "";
+  result.value = null;
+  unansweredQuestionIds.value = new Set();
+  Object.keys(answers).forEach((key) => delete answers[Number(key)]);
+  try {
+    const count = Math.min(Math.max(wrongQuestions.value.length, 1), questionCount.value || 10);
+    session.value = await api.createPractice({
+      mode: "wrong_questions",
+      question_count: count,
+      user_id: "demo",
+    });
+    practiceMode.value = "wrong_questions";
+    selectedChapterId.value = session.value.chapter_id;
+    activeView.value = "practice";
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "创建错题练习失败";
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function markMastered(questionId: number) {

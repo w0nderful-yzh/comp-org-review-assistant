@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+    ai_api_key: str | None = None
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4.1-mini"
+    ai_request_timeout: float = 45.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

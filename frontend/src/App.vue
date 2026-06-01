@@ -105,6 +105,17 @@
                 <option value="short_answer">简答题</option>
               </select>
             </label>
+            <div class="source-toggle">
+              <span>题库</span>
+              <div class="segmented compact">
+                <button :class="{ selected: practiceSourceScope === 'original_only' }" @click="practiceSourceScope = 'original_only'">
+                  只做原题
+                </button>
+                <button :class="{ selected: practiceSourceScope === 'include_ai' }" @click="practiceSourceScope = 'include_ai'">
+                  接受 AI 题
+                </button>
+              </div>
+            </div>
             <button class="primary-button" :disabled="loading" @click="startPractice">
               <Play :size="18" />
               <span>开始</span>
@@ -243,6 +254,55 @@
 
       <section v-else-if="activeView === 'admin'" class="admin-layout">
         <div class="admin-list-panel">
+          <div class="ai-draft-panel">
+            <div>
+              <p class="eyebrow">AI Drafts</p>
+              <h3>生成待审核题</h3>
+            </div>
+            <div class="ai-draft-grid">
+              <label>
+                <span>章节</span>
+                <select v-model.number="aiDraftForm.chapter_id">
+                  <option v-for="chapter in chapters" :key="chapter.id" :value="chapter.id">
+                    第 {{ chapter.order_index }} 章：{{ chapter.title }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>题型</span>
+                <select v-model="aiDraftForm.type">
+                  <option value="single_choice">单选题</option>
+                  <option value="multiple_choice">多选题</option>
+                  <option value="true_false">判断题</option>
+                  <option value="fill_blank">填空题</option>
+                  <option value="short_answer">简答题</option>
+                  <option value="calculation">计算题</option>
+                </select>
+              </label>
+              <label>
+                <span>难度</span>
+                <select v-model="aiDraftForm.difficulty">
+                  <option value="easy">基础</option>
+                  <option value="medium">中等</option>
+                  <option value="hard">提高</option>
+                </select>
+              </label>
+              <label>
+                <span>数量</span>
+                <input v-model.number="aiDraftForm.count" type="number" min="1" max="10" />
+              </label>
+            </div>
+            <label>
+              <span>关注点</span>
+              <input v-model="aiDraftForm.focus" placeholder="例如 Cache 命中率、流水线冒险" />
+            </label>
+            <button class="primary-button" :disabled="loading" @click="createAiDrafts">
+              <Sparkles :size="18" />
+              <span>生成草稿</span>
+            </button>
+            <p v-if="aiDraftMessage" class="save-message">{{ aiDraftMessage }}</p>
+          </div>
+
           <div class="admin-filters">
             <label>
               <span>章节</span>
@@ -505,8 +565,9 @@ import {
   Save,
   Search,
   Shuffle,
+  Sparkles,
 } from "@lucide/vue";
-import { api, type AnswerResult, type Chapter, type ChapterStatistics, type KnowledgeChunk, type KnowledgePoint, type PracticeResult, type PracticeSession, type Question, type QuestionAdmin, type QuestionType, type StatisticsOverview, type WrongQuestion } from "./api/client";
+import { api, type AnswerResult, type Chapter, type ChapterStatistics, type KnowledgeChunk, type KnowledgePoint, type PracticeResult, type PracticeSession, type Question, type QuestionAdmin, type QuestionType, type SourceScope, type StatisticsOverview, type WrongQuestion } from "./api/client";
 
 const chapters = ref<Chapter[]>([]);
 const session = ref<PracticeSession | null>(null);
@@ -524,6 +585,7 @@ const activeView = ref<"practice" | "wrong" | "stats" | "admin" | "knowledge">("
 const practiceMode = ref<"chapter" | "final_review" | "wrong_questions">("chapter");
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
+const practiceSourceScope = ref<SourceScope>("original_only");
 const adminChapterId = ref(0);
 const adminQuestionType = ref<QuestionType | "">("");
 const adminReviewed = ref<"" | "true" | "false">("");
@@ -532,6 +594,7 @@ const adminKeyword = ref("");
 const knowledgeChapterId = ref(1);
 const knowledgeQuery = ref("");
 const adminMessage = ref("");
+const aiDraftMessage = ref("");
 const questionCount = ref(5);
 const loading = ref(false);
 const error = ref("");
@@ -548,6 +611,13 @@ const editForm = reactive({
   explanation: "",
   is_ai_generated: false,
   is_reviewed: true,
+});
+const aiDraftForm = reactive({
+  chapter_id: 1,
+  type: "single_choice" as QuestionType,
+  difficulty: "medium" as "easy" | "medium" | "hard",
+  count: 3,
+  focus: "",
 });
 
 const viewTitle = computed(() => {
@@ -675,6 +745,7 @@ async function refreshAll() {
   chapters.value = chapterRows;
   overview.value = overviewData;
   if (!selectedChapterId.value && chapterRows.length) selectedChapterId.value = chapterRows[0].id;
+  if (!aiDraftForm.chapter_id && chapterRows.length) aiDraftForm.chapter_id = chapterRows[0].id;
 }
 
 async function refreshCurrent() {
@@ -697,6 +768,7 @@ async function startPractice() {
       chapter_id: practiceMode.value === "chapter" ? selectedChapterId.value : null,
       question_count: questionCount.value,
       question_types: selectedQuestionType.value ? [selectedQuestionType.value] : undefined,
+      source_scope: practiceSourceScope.value,
       user_id: "demo",
     });
   } catch (err) {
@@ -754,6 +826,7 @@ async function startWrongPractice() {
     session.value = await api.createPractice({
       mode: "wrong_questions",
       question_count: count,
+      source_scope: practiceSourceScope.value,
       user_id: "demo",
     });
     practiceMode.value = "wrong_questions";
@@ -850,6 +923,32 @@ async function loadAdminQuestions() {
     if (!editingQuestion.value && data.items.length) selectAdminQuestion(data.items[0]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : "加载题库失败";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function createAiDrafts() {
+  loading.value = true;
+  error.value = "";
+  aiDraftMessage.value = "";
+  try {
+    const result = await api.createAiQuestionDrafts({
+      chapter_id: aiDraftForm.chapter_id,
+      question_types: [aiDraftForm.type],
+      difficulty: aiDraftForm.difficulty,
+      count: aiDraftForm.count,
+      focus: aiDraftForm.focus.trim() || null,
+    });
+    aiDraftMessage.value = `已生成 ${result.created} 道待审核 AI 题`;
+    adminChapterId.value = aiDraftForm.chapter_id;
+    adminSourceType.value = "ai";
+    adminReviewed.value = "false";
+    editingQuestion.value = null;
+    await loadAdminQuestions();
+    await refreshAll();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "AI 生题失败";
   } finally {
     loading.value = false;
   }

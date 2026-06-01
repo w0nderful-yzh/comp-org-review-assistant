@@ -249,13 +249,14 @@ button {
 
 .controls {
   display: grid;
-  grid-template-columns: 120px 180px auto;
+  grid-template-columns: 110px 170px minmax(190px, 240px) auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 18px;
 }
 
-.controls label {
+.controls label,
+.source-toggle {
   display: grid;
   gap: 6px;
   color: #69706c;
@@ -269,6 +270,9 @@ button {
 .long-answer,
 .admin-filters input,
 .admin-filters select,
+.ai-draft-grid input,
+.ai-draft-grid select,
+.ai-draft-panel input,
 .editor-grid select,
 .editor-textarea {
   width: 100%;
@@ -470,6 +474,18 @@ button {
   background: #2d7c6f;
 }
 
+.segmented.compact {
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+}
+
+.segmented.compact button {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .long-answer {
   min-height: 100px;
   resize: vertical;
@@ -571,6 +587,37 @@ button {
   border: 1px solid var(--rule);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.ai-draft-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #c9d7d3;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fffdf8, #eef8f5);
+}
+
+.ai-draft-panel h3 {
+  margin: 2px 0 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 20px;
+}
+
+.ai-draft-panel label,
+.ai-draft-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ai-draft-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .admin-filters {
@@ -851,6 +898,7 @@ button {
   .admin-layout,
   .knowledge-layout,
   .admin-filters,
+  .ai-draft-grid,
   .editor-grid {
     grid-template-columns: 1fr;
   }

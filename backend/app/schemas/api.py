@@ -75,11 +75,15 @@ class QuestionUpdate(BaseModel):
     is_reviewed: bool | None = None
 
 
+SourceScope = Literal["original_only", "include_ai"]
+
+
 class PracticeCreate(BaseModel):
     mode: Literal["chapter", "final_review", "wrong_questions"] = "chapter"
     chapter_id: int | None = None
     question_count: int = Field(default=5, ge=1, le=30)
     question_types: list[QuestionType] | None = None
+    source_scope: SourceScope = "original_only"
     user_id: str = "demo"
 
 
@@ -140,6 +144,19 @@ class ChapterStatistics(BaseModel):
     chapter_title: str
     answered: int
     correct_rate: float
+
+
+class AiQuestionDraftCreate(BaseModel):
+    chapter_id: int
+    question_types: list[QuestionType] = Field(default_factory=lambda: ["single_choice"])
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    count: int = Field(default=3, ge=1, le=10)
+    focus: str | None = None
+
+
+class AiQuestionDraftOut(BaseModel):
+    created: int
+    question_ids: list[int]
 
 
 class KnowledgePointOut(BaseModel):

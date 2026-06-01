@@ -60,6 +60,7 @@ The app includes:
 
 - `知识库`: inspect parsed review-note knowledge points and search chapter chunks.
 - `题库维护`: filter, review, edit imported questions, and mark sources like `作业原题` or `AI生成`.
+- `章节练习`: choose `只做原题` or `接受 AI 题` before drawing reviewed questions.
 
 ## AI Question Generation
 

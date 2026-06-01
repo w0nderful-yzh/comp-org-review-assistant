@@ -67,15 +67,16 @@ def seed_test_question(chapter_id: int) -> int:
 
 def seed_source_question(chapter_id: int, source_context: str, source_assignment: str | None, is_ai_generated: bool) -> int:
     with SessionLocal() as db:
-        db.add(
-            Chapter(
-                id=chapter_id,
-                title="来源标记测试",
-                description="pytest temporary source chapter",
-                order_index=chapter_id,
-                source_file=f"pytest-source-{chapter_id}.md",
+        if not db.get(Chapter, chapter_id):
+            db.add(
+                Chapter(
+                    id=chapter_id,
+                    title="来源标记测试",
+                    description="pytest temporary source chapter",
+                    order_index=chapter_id,
+                    source_file=f"pytest-source-{chapter_id}.md",
+                )
             )
-        )
         question = Question(
             chapter_id=chapter_id,
             knowledge_point_id=None,
@@ -207,3 +208,54 @@ def test_question_source_labels_and_admin_filter() -> None:
     finally:
         cleanup_test_data(homework_chapter_id, user_id)
         cleanup_test_data(ai_chapter_id, user_id)
+
+
+def test_practice_source_scope_can_exclude_or_include_ai_questions() -> None:
+    chapter_id = 903
+    user_id = f"pytest-{uuid4()}"
+    cleanup_test_data(chapter_id, user_id)
+
+    try:
+        original_id = seed_source_question(
+            chapter_id,
+            "materials/homework-examples/作业-source-scope.txt#1",
+            "pytest作业",
+            False,
+        )
+        ai_id = seed_source_question(
+            chapter_id,
+            "ai:model-draft;chunks=pytest",
+            "AI题目生成",
+            True,
+        )
+
+        original_response = client.post(
+            "/api/practice-sessions",
+            json={
+                "mode": "chapter",
+                "chapter_id": chapter_id,
+                "question_count": 2,
+                "source_scope": "original_only",
+                "user_id": user_id,
+            },
+        )
+        assert original_response.status_code == 200
+        original_questions = original_response.json()["questions"]
+        assert [question["id"] for question in original_questions] == [original_id]
+        assert all(question["source_type"] != "ai" for question in original_questions)
+
+        include_ai_response = client.post(
+            "/api/practice-sessions",
+            json={
+                "mode": "chapter",
+                "chapter_id": chapter_id,
+                "question_count": 2,
+                "source_scope": "include_ai",
+                "user_id": user_id,
+            },
+        )
+        assert include_ai_response.status_code == 200
+        mixed_ids = {question["id"] for question in include_ai_response.json()["questions"]}
+        assert mixed_ids == {original_id, ai_id}
+    finally:
+        cleanup_test_data(chapter_id, user_id)

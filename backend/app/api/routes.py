@@ -6,9 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, WrongQuestion
 from app.schemas.api import (
+    AiQuestionDraftCreate,
+    AiQuestionDraftOut,
     AnswerResult,
     ChapterOut,
     ChapterStatistics,
@@ -27,6 +30,7 @@ from app.schemas.api import (
     StatisticsOverview,
     WrongQuestionOut,
 )
+from app.services.ai_generation import AiGenerationError, generate_question_drafts
 from app.services.grading import grade_answer, public_answer
 
 router = APIRouter(prefix="/api")
@@ -335,9 +339,60 @@ def admin_update_question(
     return question_admin_out(question)
 
 
+@router.post("/admin/ai-question-drafts", response_model=AiQuestionDraftOut)
+def create_ai_question_drafts(
+    payload: AiQuestionDraftCreate,
+    db: Session = Depends(get_db),
+) -> AiQuestionDraftOut:
+    chapter = db.get(Chapter, payload.chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    chunks = db.scalars(
+        select(KnowledgeChunk)
+        .where(KnowledgeChunk.chapter_id == payload.chapter_id)
+        .order_by(KnowledgeChunk.chunk_id)
+        .limit(12)
+    ).all()
+    if not chunks:
+        raise HTTPException(status_code=404, detail="No knowledge chunks available for this chapter")
+
+    try:
+        drafts = generate_question_drafts(payload, chapter, chunks, get_settings())
+    except AiGenerationError as exc:
+        status_code = 503 if "AI_API_KEY" in str(exc) else 502
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+    question_ids: list[int] = []
+    for draft in drafts:
+        question = Question(
+            chapter_id=draft.chapter_id,
+            knowledge_point_id=None,
+            parent_question_id=None,
+            type=draft.type,
+            difficulty=draft.difficulty,
+            stem=draft.stem,
+            options_json=draft.options_json,
+            answer_json=draft.answer_json,
+            rubric_json=draft.rubric_json,
+            explanation=draft.explanation,
+            source_context=draft.source_context,
+            source_assignment="AI题目生成",
+            is_ai_generated=True,
+            is_reviewed=False,
+        )
+        db.add(question)
+        db.flush()
+        question_ids.append(question.id)
+    db.commit()
+    return AiQuestionDraftOut(created=len(question_ids), question_ids=question_ids)
+
+
 @router.post("/practice-sessions", response_model=PracticeOut)
 def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_db)) -> PracticeOut:
     filters = [Question.is_reviewed.is_(True)]
+    if payload.source_scope == "original_only":
+        filters.append(Question.is_ai_generated.is_(False))
     if payload.mode == "chapter":
         if not payload.chapter_id:
             raise HTTPException(status_code=400, detail="chapter_id is required for chapter practice")

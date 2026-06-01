@@ -40,6 +40,15 @@ Required production changes before public use:
 6. Teacher reviews and edits the draft in `题库维护`.
 7. Only reviewed questions become visible to students.
 
+## Practice Source Scope
+
+Student practice supports two source scopes:
+
+- `original_only`: reviewed non-AI questions only.
+- `include_ai`: reviewed non-AI questions plus reviewed AI-generated questions.
+
+The frontend defaults to `original_only`. AI-generated questions can only enter practice after a teacher reviews them.
+
 ## Suggested API
 
 ```http
@@ -56,6 +65,14 @@ Request:
   "count": 5,
   "focus": "cache 命中率与平均访存时间"
 }
+```
+
+Required environment variables:
+
+```bash
+AI_API_KEY=...
+AI_BASE_URL=https://api.openai.com/v1
+AI_MODEL=gpt-4.1-mini
 ```
 
 Response:

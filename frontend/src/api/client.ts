@@ -119,6 +119,13 @@ export type KnowledgeSearch = {
   total: number;
 };
 
+export type SourceScope = "original_only" | "include_ai";
+
+export type AiQuestionDraftResult = {
+  created: number;
+  question_ids: number[];
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -186,11 +193,23 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  createAiQuestionDrafts: (payload: {
+    chapter_id: number;
+    question_types: QuestionType[];
+    difficulty: "easy" | "medium" | "hard";
+    count: number;
+    focus?: string | null;
+  }) =>
+    request<AiQuestionDraftResult>("/api/admin/ai-question-drafts", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   createPractice: (payload: {
     mode: "chapter" | "final_review" | "wrong_questions";
     chapter_id?: number | null;
     question_count: number;
     question_types?: QuestionType[];
+    source_scope?: SourceScope;
     user_id?: string;
   }) =>
     request<PracticeSession>("/api/practice-sessions", {

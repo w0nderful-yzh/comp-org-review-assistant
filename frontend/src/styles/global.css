@@ -1006,6 +1006,79 @@ button {
   font-size: 24px;
 }
 
+.courseware-card {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #cfded9;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(45 124 111 / 8%), transparent 58%),
+    #fffef9;
+}
+
+.courseware-card h3 {
+  margin: 4px 0 2px;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 20px;
+}
+
+.courseware-card span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.courseware-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.courseware-actions button {
+  width: 100%;
+}
+
+.courseware-error {
+  margin: 0;
+  color: var(--brick);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pdf-reader {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #fffef9;
+}
+
+.pdf-reader-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdf-reader-head h3 {
+  margin: 4px 0 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 22px;
+}
+
+.pdf-reader iframe {
+  width: 100%;
+  height: min(72vh, 760px);
+  min-height: 520px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #f7f9f3;
+}
+
 .knowledge-point-list {
   display: grid;
   gap: 10px;

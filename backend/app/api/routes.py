@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -53,6 +55,8 @@ logger = get_logger(__name__)
 
 UNHELPFUL_ARCHIVE_THRESHOLD = 3
 DAILY_AI_LIMIT = 50
+REPO_ROOT = Path(__file__).resolve().parents[3]
+COURSEWARE_DIR = REPO_ROOT / "materials" / "courseware-pdfs"
 
 FLAG_SCORE_MAP = {
     "answer_error": (-5, 1),     # (quality_delta, error_count_delta)
@@ -504,6 +508,28 @@ def search_knowledge(
             KnowledgeChunk.content.ilike(f"%{query}%"),
         )
     ]
+
+
+@router.get("/chapters/{chapter_id}/courseware-pdf")
+def get_chapter_courseware_pdf(
+    chapter_id: int,
+    download: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    chapter = db.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    pdf_path = COURSEWARE_DIR / f"chapter-{chapter.order_index:02d}-courseware.pdf"
+    if not pdf_path.is_file():
+        raise HTTPException(status_code=404, detail="Courseware PDF not found")
+    filename = f"第{chapter.order_index}章-{chapter.title}-课件.pdf"
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+        content_disposition_type="attachment" if download else "inline",
+    )
     if chapter_id:
         conditions.append(KnowledgeChunk.chapter_id == chapter_id)
 

@@ -228,12 +228,38 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers,
+    ...init,
+  });
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem("comp-org-review-user");
+      window.location.reload();
+    }
+    const detail = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(detail.detail ?? response.statusText);
+  }
+  return response.blob();
+}
+
 export const api = {
   chapters: () => request<Chapter[]>("/api/chapters"),
   aiStatus: () => request<AiStatus>("/api/ai-status"),
   knowledgePoints: (chapterId: number) => request<KnowledgePoint[]>(`/api/chapters/${chapterId}/knowledge-points`),
   knowledgeChunks: (chapterId: number, limit = 30) =>
     request<KnowledgeChunk[]>(`/api/chapters/${chapterId}/knowledge-chunks?limit=${limit}`),
+  coursewarePdf: (chapterId: number, download = false) =>
+    requestBlob(`/api/chapters/${chapterId}/courseware-pdf${download ? "?download=true" : ""}`),
   searchKnowledge: (params: { q: string; chapter_id?: number | null; limit?: number }) => {
     const search = new URLSearchParams();
     search.set("q", params.q);

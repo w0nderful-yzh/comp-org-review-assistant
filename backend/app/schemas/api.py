@@ -44,6 +44,7 @@ class QuestionOut(BaseModel):
     user_liked: bool = False
     ai_status: str | None = None
     quality_score: int = 0
+    children: list["QuestionOut"] = Field(default_factory=list)
 
 
 class QuestionReviewOut(QuestionOut):
@@ -99,6 +100,40 @@ class PracticeResult(BaseModel):
     results: list[AnswerResult]
 
 
+class PracticeHistoryItem(BaseModel):
+    id: int
+    mode: str
+    chapter_id: int | None
+    chapter_title: str | None
+    question_count: int
+    score: float | None
+    started_at: datetime
+    submitted_at: datetime | None
+
+
+class AnswerReviewResult(BaseModel):
+    question_id: int
+    user_answer: Any
+    is_correct: bool | None
+    score: float | None
+    feedback: str | None
+    correct_answer: Any
+    explanation: str | None
+
+
+class PracticeReviewOut(BaseModel):
+    id: int
+    mode: str
+    chapter_id: int | None
+    chapter_title: str | None
+    question_count: int
+    score: float | None
+    started_at: datetime
+    submitted_at: datetime | None
+    questions: list[QuestionReviewOut]
+    results: list[AnswerReviewResult]
+
+
 class WrongQuestionOut(BaseModel):
     id: int
     question: QuestionReviewOut
@@ -119,6 +154,23 @@ class ChapterStatistics(BaseModel):
     chapter_title: str
     answered: int
     correct_rate: float
+
+
+class QuestionTypeStatistics(BaseModel):
+    question_type: str
+    answered: int
+    correct_rate: float
+
+
+class StudyRecommendation(BaseModel):
+    chapter_id: int
+    chapter_title: str
+    answered: int
+    correct_rate: float
+    wrong_count: int
+    reason: str
+    action: str
+    priority: float
 
 
 class AiQuestionDraftCreate(BaseModel):

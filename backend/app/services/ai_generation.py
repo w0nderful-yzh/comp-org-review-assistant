@@ -18,7 +18,6 @@ SUPPORTED_GENERATION_TYPES = {
     "multiple_choice",
     "true_false",
     "fill_blank",
-    "short_answer",
     "calculation",
 }
 
@@ -92,14 +91,14 @@ def build_generation_prompt(
 {{
   "questions": [
     {{
-      "type": "single_choice | multiple_choice | true_false | fill_blank | short_answer | calculation",
+      "type": "single_choice | multiple_choice | true_false | fill_blank | calculation",
       "difficulty": "easy | medium | hard",
       "knowledge_points": ["相关知识点"],
       "stem": "题干",
       "options": [{{"key": "A", "text": "选项内容"}}],
       "answer": "A 或 [\\"A\\", \\"C\\"] 或 TRUE/FALSE",
       "blanks": [{{"index": 1, "answer": "标准答案", "acceptable_answers": ["可接受答案"]}}],
-      "reference_answer": "简答/计算题参考答案",
+      "reference_answer": "计算题参考答案",
       "rubric": ["评分点1", "评分点2"],
       "explanation": "解析，说明答案为什么正确"
     }}
@@ -114,7 +113,7 @@ def build_generation_prompt(
 - 单选/多选必须提供 options，答案只能使用选项 key。
 - 判断题 answer 只能是 TRUE 或 FALSE。
 - 填空题使用 blanks，不要使用 options。
-- 简答题和计算题使用 reference_answer 和 rubric。
+- 计算题使用 reference_answer 和 rubric。
 - 不要照抄整段知识块，题目要能检验理解。
 """.strip()
 

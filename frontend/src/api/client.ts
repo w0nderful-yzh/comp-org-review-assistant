@@ -22,6 +22,7 @@ export type Question = {
   user_liked: boolean;
   ai_status: string | null;
   quality_score: number;
+  children: Question[];
 };
 
 export type QuestionType =
@@ -62,6 +63,40 @@ export type PracticeResult = {
   results: AnswerResult[];
 };
 
+export type PracticeHistoryItem = {
+  id: number;
+  mode: string;
+  chapter_id: number | null;
+  chapter_title: string | null;
+  question_count: number;
+  score: number | null;
+  started_at: string;
+  submitted_at: string | null;
+};
+
+export type AnswerReviewResult = {
+  question_id: number;
+  user_answer: unknown;
+  is_correct: boolean | null;
+  score: number | null;
+  feedback: string | null;
+  correct_answer: unknown;
+  explanation: string | null;
+};
+
+export type PracticeReview = {
+  id: number;
+  mode: string;
+  chapter_id: number | null;
+  chapter_title: string | null;
+  question_count: number;
+  score: number | null;
+  started_at: string;
+  submitted_at: string | null;
+  questions: Array<Question & { answer: unknown }>;
+  results: AnswerReviewResult[];
+};
+
 export type WrongQuestion = {
   id: number;
   question: Question & { answer: unknown };
@@ -82,6 +117,23 @@ export type ChapterStatistics = {
   chapter_title: string;
   answered: number;
   correct_rate: number;
+};
+
+export type QuestionTypeStatistics = {
+  question_type: QuestionType;
+  answered: number;
+  correct_rate: number;
+};
+
+export type StudyRecommendation = {
+  chapter_id: number;
+  chapter_title: string;
+  answered: number;
+  correct_rate: number;
+  wrong_count: number;
+  reason: string;
+  action: string;
+  priority: number;
 };
 
 export type KnowledgePoint = {
@@ -133,6 +185,23 @@ export type FeedbackType = "helpful" | "not_helpful" | "flag";
 export type FlagReason = "answer_error" | "unclear_stem" | "ambiguous_options" | "out_of_scope" | "duplicate" | "unclear_explanation";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const USER_ID_KEY = "comp-org-review-user-id";
+
+export function getCurrentUserId() {
+  if (typeof localStorage === "undefined") return "demo";
+  const existing = localStorage.getItem(USER_ID_KEY);
+  if (existing) return existing;
+  const generated =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? `anon-${crypto.randomUUID()}`
+      : `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem(USER_ID_KEY, generated);
+  return generated;
+}
+
+function userQuery() {
+  return `user_id=${encodeURIComponent(getCurrentUserId())}`;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -151,7 +220,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   chapters: () => request<Chapter[]>("/api/chapters"),
-  aiStatus: () => request<AiStatus>("/api/ai-status?user_id=demo"),
+  aiStatus: () => request<AiStatus>(`/api/ai-status?${userQuery()}`),
   knowledgePoints: (chapterId: number) => request<KnowledgePoint[]>(`/api/chapters/${chapterId}/knowledge-points`),
   knowledgeChunks: (chapterId: number, limit = 30) =>
     request<KnowledgeChunk[]>(`/api/chapters/${chapterId}/knowledge-chunks?limit=${limit}`),
@@ -171,15 +240,15 @@ export const api = {
   }) =>
     request<AiQuestionDraftResult>("/api/ai-question-drafts", {
       method: "POST",
-      body: JSON.stringify({ ...payload, user_id: "demo" }),
+      body: JSON.stringify({ ...payload, user_id: getCurrentUserId() }),
     }),
   submitFeedback: (questionId: number, feedbackType: FeedbackType, reason?: FlagReason) =>
-    request<QuestionFeedbackResult>(`/api/questions/${questionId}/feedback?user_id=demo`, {
+    request<QuestionFeedbackResult>(`/api/questions/${questionId}/feedback?${userQuery()}`, {
       method: "POST",
       body: JSON.stringify({ feedback_type: feedbackType, reason }),
     }),
   deleteFeedback: (questionId: number) =>
-    request<{ deleted: boolean }>(`/api/questions/${questionId}/feedback?user_id=demo`, {
+    request<{ deleted: boolean }>(`/api/questions/${questionId}/feedback?${userQuery()}`, {
       method: "DELETE",
     }),
   createPractice: (payload: {
@@ -192,18 +261,22 @@ export const api = {
   }) =>
     request<PracticeSession>("/api/practice-sessions", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, user_id: payload.user_id ?? getCurrentUserId() }),
     }),
   submitPractice: (sessionId: number, answers: Array<{ question_id: number; user_answer: unknown }>) =>
     request<PracticeResult>(`/api/practice-sessions/${sessionId}/submit`, {
       method: "POST",
-      body: JSON.stringify({ user_id: "demo", answers }),
+      body: JSON.stringify({ user_id: getCurrentUserId(), answers }),
     }),
-  wrongQuestions: () => request<WrongQuestion[]>("/api/wrong-questions?user_id=demo"),
+  practiceHistory: () => request<PracticeHistoryItem[]>(`/api/practice-sessions?${userQuery()}`),
+  reviewPractice: (sessionId: number) => request<PracticeReview>(`/api/practice-sessions/${sessionId}/review?${userQuery()}`),
+  wrongQuestions: () => request<WrongQuestion[]>(`/api/wrong-questions?${userQuery()}`),
   markMastered: (questionId: number) =>
-    request<{ mastered: boolean }>(`/api/wrong-questions/${questionId}/mastered?user_id=demo`, {
+    request<{ mastered: boolean }>(`/api/wrong-questions/${questionId}/mastered?${userQuery()}`, {
       method: "POST",
     }),
-  overview: () => request<StatisticsOverview>("/api/statistics/overview?user_id=demo"),
-  chapterStats: () => request<ChapterStatistics[]>("/api/statistics/chapters?user_id=demo"),
+  overview: () => request<StatisticsOverview>(`/api/statistics/overview?${userQuery()}`),
+  chapterStats: () => request<ChapterStatistics[]>(`/api/statistics/chapters?${userQuery()}`),
+  questionTypeStats: () => request<QuestionTypeStatistics[]>(`/api/statistics/question-types?${userQuery()}`),
+  recommendations: () => request<StudyRecommendation[]>(`/api/statistics/recommendations?${userQuery()}`),
 };

@@ -1,182 +1,215 @@
 <template>
-  <section class="practice-layout">
-    <div class="chapter-list">
-      <button
-        class="chapter-row final-row"
-        :class="{ selected: practiceMode === 'final_review' }"
-        @click="selectFinalReview"
-      >
-        <div>
-          <strong>总复习</strong>
-          <span>跨章节随机抽题</span>
+  <section class="practice-page" :class="{ running: Boolean(session) }">
+    <div v-if="!session" class="practice-setup">
+      <section class="practice-setup-main">
+        <div class="section-title">
+          <p class="eyebrow">Practice Setup</p>
+          <h3>{{ setupTitle }}</h3>
         </div>
-        <Shuffle :size="18" />
-      </button>
 
-      <button
-        v-for="chapter in chapters"
-        :key="chapter.id"
-        class="chapter-row"
-        :class="{ selected: selectedChapterId === chapter.id && practiceMode === 'chapter' }"
-        @click="selectChapter(chapter.id)"
-      >
-        <div>
-          <strong>第 {{ chapter.order_index }} 章：{{ chapter.title }}</strong>
-          <span>{{ chapter.question_count }} 道题</span>
-        </div>
-        <ChevronRight :size="18" />
-      </button>
-    </div>
-
-    <div class="practice-panel">
-      <div class="controls">
-        <label>
-          <span>题量</span>
-          <input v-model.number="questionCount" type="number" min="1" max="30" />
-        </label>
-        <label>
-          <span>题型</span>
-          <select v-model="selectedQuestionType">
-            <option value="">混合练习</option>
-            <option value="single_choice">单选题</option>
-            <option value="multiple_choice">多选题</option>
-            <option value="true_false">判断题</option>
-            <option value="fill_blank">填空题</option>
-            <option value="short_answer">简答题</option>
-          </select>
-        </label>
-        <div class="source-toggle">
-          <span>练习模式</span>
-          <div class="segmented compact">
-            <button :class="{ selected: practiceSourceScope === 'original_only' }" @click="practiceSourceScope = 'original_only'">
-              只做原题
-            </button>
-            <button :class="{ selected: practiceSourceScope === 'standard' }" @click="practiceSourceScope = 'standard'">
-              标准练习
-            </button>
-            <button :class="{ selected: practiceSourceScope === 'supplement' }" @click="practiceSourceScope = 'supplement'">
-              专项补充
-            </button>
-          </div>
-        </div>
-        <button class="primary-button" :disabled="loading" @click="startPractice">
-          <Play :size="18" />
-          <span>开始</span>
-        </button>
-      </div>
-
-      <div v-if="aiEnabled" class="ai-generate-section">
-        <button class="ai-generate-toggle" @click="showAiPanel = !showAiPanel">
-          <div class="ai-toggle-icon">
-            <Sparkles :size="16" />
-          </div>
-          <div class="ai-toggle-text">
-            <span>AI 补充出题</span>
-            <small>{{ aiChapterLabel }}</small>
-          </div>
-          <ChevronRight :size="14" class="ai-toggle-arrow" :class="{ rotated: showAiPanel }" />
-        </button>
-        <div v-if="showAiPanel" class="ai-generate-panel">
-          <div class="ai-panel-context">
-            <span class="ai-context-label">生成范围</span>
-            <strong>{{ aiChapterLabel }}</strong>
-          </div>
-          <div class="ai-form-row">
-            <div class="ai-form-field">
-              <label>题型</label>
-              <div class="ai-type-chips">
-                <button
-                  :class="{ active: aiForm.type === '' }"
-                  @click="aiForm.type = ''"
-                >随机</button>
-                <button
-                  :class="{ active: aiForm.type === 'single_choice' }"
-                  @click="aiForm.type = 'single_choice'"
-                >单选</button>
-                <button
-                  :class="{ active: aiForm.type === 'multiple_choice' }"
-                  @click="aiForm.type = 'multiple_choice'"
-                >多选</button>
-                <button
-                  :class="{ active: aiForm.type === 'true_false' }"
-                  @click="aiForm.type = 'true_false'"
-                >判断</button>
-                <button
-                  :class="{ active: aiForm.type === 'fill_blank' }"
-                  @click="aiForm.type = 'fill_blank'"
-                >填空</button>
-                <button
-                  :class="{ active: aiForm.type === 'short_answer' }"
-                  @click="aiForm.type = 'short_answer'"
-                >简答</button>
-              </div>
-            </div>
-            <div class="ai-form-field ai-form-compact">
-              <label>难度</label>
-              <select v-model="aiForm.difficulty">
-                <option value="easy">基础</option>
-                <option value="medium">中等</option>
-                <option value="hard">提高</option>
-              </select>
-            </div>
-            <div class="ai-form-field ai-form-compact">
-              <label>数量</label>
-              <div class="ai-count-stepper">
-                <button @click="aiForm.count = Math.max(1, aiForm.count - 1)">−</button>
-                <span>{{ aiForm.count }}</span>
-                <button @click="aiForm.count = Math.min(5, aiForm.count + 1)">+</button>
-              </div>
-            </div>
-          </div>
-          <div class="ai-form-field">
-            <label>关注点 <span class="ai-optional">可选</span></label>
-            <input
-              v-model="aiForm.focus"
-              class="ai-focus-input"
-              placeholder="例如 Cache 命中率、流水线冒险、补码运算"
-            />
-          </div>
-          <div class="ai-actions">
-            <button
-              class="ai-generate-btn"
-              :disabled="aiLoading"
-              @click="generateAiQuestions"
-            >
-              <Sparkles :size="15" />
-              <span>{{ aiLoading ? "正在生成..." : "生成补充题" }}</span>
-            </button>
-            <span class="ai-remaining" v-if="aiDailyRemaining >= 0">
-              今日剩余 {{ aiDailyRemaining }} 道
-            </span>
-          </div>
-          <p v-if="aiMessage" class="ai-message" :class="{ error: aiMessage.includes('失败') || aiMessage.includes('错误') }">
-            {{ aiMessage }}
-          </p>
-        </div>
-      </div>
-      <div v-else class="ai-disabled-notice">
-        <Sparkles :size="14" />
-        <span>AI 服务未配置，补充练习暂不可用</span>
-      </div>
-
-      <div v-if="session" class="question-stack">
-        <div class="session-head">
-          <span>练习 #{{ session.id }}</span>
-          <strong v-if="result">得分 {{ result.score.toFixed(1) }} / {{ result.total }}</strong>
-        </div>
-        <div class="review-strip">
+        <div class="chapter-choice-grid">
           <button
-            v-for="(question, index) in session.questions"
-            :key="question.id"
-            class="review-dot"
-            :class="reviewDotClass(question.id)"
-            :title="`第 ${index + 1} 题`"
-            @click="jumpToQuestion(question.id)"
+            class="chapter-row final-row"
+            :class="{ selected: practiceMode === 'final_review' }"
+            @click="selectFinalReview"
           >
-            {{ index + 1 }}
+            <div>
+              <strong>总复习</strong>
+              <span>跨章节随机抽题</span>
+            </div>
+            <Shuffle :size="18" />
+          </button>
+
+          <button
+            v-for="chapter in chapters"
+            :key="chapter.id"
+            class="chapter-row"
+            :class="{ selected: selectedChapterId === chapter.id && practiceMode === 'chapter' }"
+            @click="selectChapter(chapter.id)"
+          >
+            <div>
+              <strong>第 {{ chapter.order_index }} 章：{{ chapter.title }}</strong>
+              <span>{{ chapter.question_count }} 道题</span>
+            </div>
+            <ChevronRight :size="18" />
           </button>
         </div>
+      </section>
 
+      <aside class="practice-setup-side">
+        <section class="practice-panel setup-card">
+          <div class="controls setup-controls">
+            <label>
+              <span>题量</span>
+              <input v-model.number="questionCount" type="number" min="1" max="30" />
+            </label>
+            <label>
+              <span>题型</span>
+              <select v-model="selectedQuestionType">
+                <option value="">混合练习</option>
+                <option value="single_choice">单选题</option>
+                <option value="multiple_choice">多选题</option>
+                <option value="true_false">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="calculation">计算题</option>
+                <option value="question_group">阅读理解</option>
+              </select>
+            </label>
+            <div class="source-toggle">
+              <span>练习模式</span>
+              <div class="segmented compact">
+                <button :class="{ selected: practiceSourceScope === 'original_only' }" @click="practiceSourceScope = 'original_only'">
+                  只做原题
+                </button>
+                <button :class="{ selected: practiceSourceScope === 'standard' }" @click="practiceSourceScope = 'standard'">
+                  标准练习
+                </button>
+                <button :class="{ selected: practiceSourceScope === 'supplement' }" @click="practiceSourceScope = 'supplement'">
+                  专项补充
+                </button>
+              </div>
+            </div>
+            <button class="primary-button" :disabled="loading" @click="startPractice">
+              <Play :size="18" />
+              <span>开始</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="practice-panel setup-card">
+          <div v-if="aiEnabled" class="ai-generate-section compact-ai">
+            <button class="ai-generate-toggle" @click="showAiPanel = !showAiPanel">
+              <div class="ai-toggle-icon">
+                <Sparkles :size="16" />
+              </div>
+              <div class="ai-toggle-text">
+                <span>AI 补充出题</span>
+                <small>{{ aiChapterLabel }}</small>
+              </div>
+              <ChevronRight :size="14" class="ai-toggle-arrow" :class="{ rotated: showAiPanel }" />
+            </button>
+            <div v-if="showAiPanel" class="ai-generate-panel">
+              <div class="ai-panel-context">
+                <span class="ai-context-label">生成范围</span>
+                <strong>{{ aiChapterLabel }}</strong>
+              </div>
+              <div class="ai-form-row">
+                <div class="ai-form-field">
+                  <label>题型</label>
+                  <div class="ai-type-chips">
+                    <button :class="{ active: aiForm.type === '' }" @click="aiForm.type = ''">随机</button>
+                    <button :class="{ active: aiForm.type === 'single_choice' }" @click="aiForm.type = 'single_choice'">单选</button>
+                    <button :class="{ active: aiForm.type === 'multiple_choice' }" @click="aiForm.type = 'multiple_choice'">多选</button>
+                    <button :class="{ active: aiForm.type === 'true_false' }" @click="aiForm.type = 'true_false'">判断</button>
+                    <button :class="{ active: aiForm.type === 'fill_blank' }" @click="aiForm.type = 'fill_blank'">填空</button>
+                    <button :class="{ active: aiForm.type === 'calculation' }" @click="aiForm.type = 'calculation'">计算</button>
+                  </div>
+                </div>
+                <div class="ai-form-field ai-form-compact">
+                  <label>难度</label>
+                  <select v-model="aiForm.difficulty">
+                    <option value="easy">基础</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">提高</option>
+                  </select>
+                </div>
+                <div class="ai-form-field ai-form-compact">
+                  <label>数量</label>
+                  <div class="ai-count-stepper">
+                    <button @click="aiForm.count = Math.max(1, aiForm.count - 1)">−</button>
+                    <span>{{ aiForm.count }}</span>
+                    <button @click="aiForm.count = Math.min(5, aiForm.count + 1)">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ai-form-field">
+                <label>关注点 <span class="ai-optional">可选</span></label>
+                <input
+                  v-model="aiForm.focus"
+                  class="ai-focus-input"
+                  placeholder="例如 Cache 命中率、流水线冒险、补码运算"
+                />
+              </div>
+              <div class="ai-actions">
+                <button class="ai-generate-btn" :disabled="aiLoading" @click="generateAiQuestions">
+                  <Sparkles :size="15" />
+                  <span>{{ aiLoading ? "正在生成..." : "生成补充题" }}</span>
+                </button>
+                <span class="ai-remaining" v-if="aiDailyRemaining >= 0">
+                  今日剩余 {{ aiDailyRemaining }} 道
+                </span>
+              </div>
+              <p v-if="aiMessage" class="ai-message" :class="{ error: aiMessage.includes('失败') || aiMessage.includes('错误') }">
+                {{ aiMessage }}
+              </p>
+            </div>
+          </div>
+          <div v-else class="ai-disabled-notice">
+            <Sparkles :size="14" />
+            <span>AI 服务未配置，补充练习暂不可用</span>
+          </div>
+        </section>
+
+        <section class="practice-panel setup-card history-card">
+          <div class="history-head">
+            <div>
+              <p class="eyebrow">History</p>
+              <h3>练习记录</h3>
+            </div>
+            <button class="icon-button small" title="刷新记录" @click="loadHistory">
+              <History :size="16" />
+            </button>
+          </div>
+          <div v-if="historyItems.length" class="history-list">
+            <button v-for="item in historyItems" :key="item.id" class="history-row" @click="openHistory(item.id)">
+              <div>
+                <strong>{{ historyTitle(item) }}</strong>
+                <span>{{ formatDate(item.started_at) }} · {{ item.question_count }} 题</span>
+              </div>
+              <b>{{ item.submitted_at ? `${scoreText(item.score)} 分` : "未完成" }}</b>
+              <Eye :size="16" />
+            </button>
+          </div>
+          <div v-else class="compact-empty">
+            暂无练习记录。
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div v-else class="practice-runner">
+      <div class="runner-head">
+        <div>
+          <p class="eyebrow">{{ isReviewMode ? "Review" : "Practice" }}</p>
+          <h3>{{ runnerTitle }}</h3>
+          <span>{{ session.question_count }} 题{{ result ? ` · 得分 ${result.score.toFixed(1)} / ${result.total}` : "" }}</span>
+        </div>
+        <div class="runner-actions">
+          <button class="secondary-button" @click="exitPractice">
+            <X :size="16" />
+            <span>{{ result || isReviewMode ? "返回选择" : "退出练习" }}</span>
+          </button>
+        </div>
+      </div>
+
+      <section v-if="error" class="notice error">
+        {{ error }}
+      </section>
+
+      <div class="review-strip">
+        <button
+          v-for="(question, index) in session.questions"
+          :key="question.id"
+          class="review-dot"
+          :class="reviewDotClass(question.id)"
+          :title="`第 ${index + 1} 题`"
+          @click="jumpToQuestion(question.id)"
+        >
+          {{ index + 1 }}
+        </button>
+      </div>
+
+      <div class="question-stack">
         <article
           v-for="(question, index) in session.questions"
           :id="`question-${question.id}`"
@@ -189,15 +222,93 @@
             <small>{{ typeLabel(question.type) }} · {{ difficultyLabel(question.difficulty) }}</small>
             <b class="source-chip" :class="sourceTagClass(question.source_type)">{{ question.source_label }}</b>
           </div>
-          <p class="stem">{{ question.stem }}</p>
+          <p v-if="question.type !== 'question_group'" class="stem">{{ question.stem }}</p>
 
           <div v-if="question.ai_status" class="ai-question-notice">
             本题由 AI 根据课程知识库生成，可能存在不严谨之处。欢迎反馈。
           </div>
 
-          <div v-if="question.type === 'single_choice'" class="options">
+          <div v-if="question.type === 'question_group'" class="reading-group">
+            <div class="reading-material">
+              {{ question.stem }}
+            </div>
+            <section
+              v-for="(child, childIndex) in question.children"
+              :id="`question-${child.id}`"
+              :key="child.id"
+              class="sub-question-card"
+              :class="{ missing: unansweredQuestionIds.has(child.id) }"
+            >
+              <div class="question-meta compact-meta">
+                <span>{{ index + 1 }}.{{ childIndex + 1 }}</span>
+                <small>{{ typeLabel(child.type) }} · {{ difficultyLabel(child.difficulty) }}</small>
+                <b class="source-chip" :class="sourceTagClass(child.source_type)">{{ child.source_label }}</b>
+              </div>
+              <p class="stem">{{ child.stem }}</p>
+
+              <div v-if="child.type === 'single_choice'" class="options">
+                <label v-for="option in child.options" :key="option.key" class="option-line">
+                  <input v-model="answers[child.id]" type="radio" :disabled="answerLocked" :name="`q-${child.id}`" :value="option.key" />
+                  <span>{{ option.key }}. {{ option.text }}</span>
+                </label>
+              </div>
+
+              <div v-else-if="child.type === 'multiple_choice'" class="options">
+                <label v-for="option in child.options" :key="option.key" class="option-line">
+                  <input
+                    type="checkbox"
+                    :disabled="answerLocked"
+                    :checked="multiAnswer(child.id).includes(option.key)"
+                    @change="toggleMulti(child.id, option.key)"
+                  />
+                  <span>{{ option.key }}. {{ option.text }}</span>
+                </label>
+              </div>
+
+              <div v-else-if="child.type === 'true_false'" class="segmented">
+                <button :disabled="answerLocked" :class="{ selected: answers[child.id] === 'TRUE' }" @click="answers[child.id] = 'TRUE'">
+                  对
+                </button>
+                <button :disabled="answerLocked" :class="{ selected: answers[child.id] === 'FALSE' }" @click="answers[child.id] = 'FALSE'">
+                  错
+                </button>
+              </div>
+
+              <div v-else-if="child.type === 'fill_blank' || child.type === 'cloze'" class="blank-grid">
+                <input
+                  v-for="blankIndex in blankCount(child)"
+                  :key="blankIndex"
+                  :value="blankAnswer(child.id, blankIndex - 1)"
+                  class="text-answer"
+                  :disabled="answerLocked"
+                  :placeholder="`第 ${blankIndex} 空`"
+                  @input="setBlankAnswer(child.id, blankIndex - 1, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+
+              <textarea
+                v-else
+                v-model="answers[child.id]"
+                class="long-answer"
+                :disabled="answerLocked"
+                placeholder="输入你的答案"
+              />
+
+              <div v-if="resultByQuestion[child.id]" class="answer-feedback">
+                <strong :class="resultStatusClass(child.id)">
+                  {{ resultStatusText(child.id) }}
+                </strong>
+                <span v-if="resultByQuestion[child.id].feedback">{{ resultByQuestion[child.id].feedback }}</span>
+                <p>你的答案：{{ formatAnswer(answers[child.id]) }}</p>
+                <p>参考答案：{{ formatAnswer(resultByQuestion[child.id].correct_answer) }}</p>
+                <p v-if="resultByQuestion[child.id].explanation">{{ resultByQuestion[child.id].explanation }}</p>
+              </div>
+            </section>
+          </div>
+
+          <div v-else-if="question.type === 'single_choice'" class="options">
             <label v-for="option in question.options" :key="option.key" class="option-line">
-              <input v-model="answers[question.id]" type="radio" :name="`q-${question.id}`" :value="option.key" />
+              <input v-model="answers[question.id]" type="radio" :disabled="answerLocked" :name="`q-${question.id}`" :value="option.key" />
               <span>{{ option.key }}. {{ option.text }}</span>
             </label>
           </div>
@@ -206,6 +317,7 @@
             <label v-for="option in question.options" :key="option.key" class="option-line">
               <input
                 type="checkbox"
+                :disabled="answerLocked"
                 :checked="multiAnswer(question.id).includes(option.key)"
                 @change="toggleMulti(question.id, option.key)"
               />
@@ -214,10 +326,10 @@
           </div>
 
           <div v-else-if="question.type === 'true_false'" class="segmented">
-            <button :class="{ selected: answers[question.id] === 'TRUE' }" @click="answers[question.id] = 'TRUE'">
+            <button :disabled="answerLocked" :class="{ selected: answers[question.id] === 'TRUE' }" @click="answers[question.id] = 'TRUE'">
               对
             </button>
-            <button :class="{ selected: answers[question.id] === 'FALSE' }" @click="answers[question.id] = 'FALSE'">
+            <button :disabled="answerLocked" :class="{ selected: answers[question.id] === 'FALSE' }" @click="answers[question.id] = 'FALSE'">
               错
             </button>
           </div>
@@ -228,6 +340,7 @@
               :key="blankIndex"
               :value="blankAnswer(question.id, blankIndex - 1)"
               class="text-answer"
+              :disabled="answerLocked"
               :placeholder="`第 ${blankIndex} 空`"
               @input="setBlankAnswer(question.id, blankIndex - 1, ($event.target as HTMLInputElement).value)"
             />
@@ -237,14 +350,16 @@
             v-else
             v-model="answers[question.id]"
             class="long-answer"
+            :disabled="answerLocked"
             placeholder="输入你的答案"
           />
 
           <div v-if="resultByQuestion[question.id]" class="answer-feedback">
-            <strong :class="resultByQuestion[question.id].is_correct ? 'ok' : 'bad'">
-              {{ resultByQuestion[question.id].is_correct ? "正确" : "需要复盘" }}
+            <strong :class="resultStatusClass(question.id)">
+              {{ resultStatusText(question.id) }}
             </strong>
-            <span>{{ resultByQuestion[question.id].feedback }}</span>
+            <span v-if="resultByQuestion[question.id].feedback">{{ resultByQuestion[question.id].feedback }}</span>
+            <p>你的答案：{{ formatAnswer(answers[question.id]) }}</p>
             <p>参考答案：{{ formatAnswer(resultByQuestion[question.id].correct_answer) }}</p>
             <p v-if="resultByQuestion[question.id].explanation">{{ resultByQuestion[question.id].explanation }}</p>
           </div>
@@ -287,15 +402,14 @@
           </div>
         </article>
 
-        <button class="submit-button" :disabled="loading || Boolean(result)" @click="submitPractice">
+        <button v-if="!result && !isReviewMode" class="submit-button" :disabled="loading" @click="submitPractice">
           <CheckCircle2 :size="18" />
           <span>提交并批改</span>
         </button>
-      </div>
-
-      <div v-else class="empty-state">
-        <GraduationCap :size="38" />
-        <p>选择章节或总复习后开始练习。</p>
+        <button v-else class="submit-button" @click="exitPractice">
+          <ChevronRight :size="18" />
+          <span>返回选择章节</span>
+        </button>
       </div>
     </div>
   </section>
@@ -307,15 +421,21 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
-  GraduationCap,
+  Eye,
+  History,
   Play,
   Shuffle,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "@lucide/vue";
-import { api, type AnswerResult, type FeedbackType, type FlagReason, type PracticeResult, type PracticeSession, type Question, type QuestionType, type SourceScope } from "../api/client";
+import { api, type AnswerResult, type AnswerReviewResult, type FeedbackType, type FlagReason, type PracticeHistoryItem, type PracticeResult, type PracticeSession, type Question, type QuestionType, type SourceScope } from "../api/client";
 import { useSharedState } from "../composables/useSharedState";
+
+type DisplayResult = Omit<PracticeResult, "results"> & {
+  results: Array<AnswerResult | AnswerReviewResult>;
+};
 
 const emit = defineEmits<{
   refresh: [];
@@ -325,7 +445,8 @@ const emit = defineEmits<{
 const { chapters, typeLabel, difficultyLabel, sourceTagClass } = useSharedState();
 
 const session = ref<PracticeSession | null>(null);
-const result = ref<PracticeResult | null>(null);
+const result = ref<DisplayResult | null>(null);
+const isReviewMode = ref(false);
 const practiceMode = ref<"chapter" | "final_review" | "wrong_questions">("chapter");
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
@@ -339,12 +460,25 @@ const showAiPanel = ref(false);
 const aiLoading = ref(false);
 const aiMessage = ref("");
 const flagPanelQuestionId = ref<number | null>(null);
+const historyItems = ref<PracticeHistoryItem[]>([]);
 
 const aiForm = reactive({
   type: "" as QuestionType | "",
   difficulty: "medium" as "easy" | "medium" | "hard",
   count: 3,
   focus: "",
+});
+
+const setupTitle = computed(() => {
+  if (practiceMode.value === "final_review") return "总复习";
+  const ch = chapters.value.find((chapter) => chapter.id === selectedChapterId.value);
+  return ch ? `第 ${ch.order_index} 章：${ch.title}` : "选择章节";
+});
+
+const runnerTitle = computed(() => {
+  if (isReviewMode.value) return `练习 #${session.value?.id ?? ""} 回看`;
+  if (practiceMode.value === "wrong_questions") return "错题重练";
+  return setupTitle.value;
 });
 
 const aiChapterLabel = computed(() => {
@@ -356,6 +490,7 @@ const aiChapterLabel = computed(() => {
   return "自动选择题目最少的章节";
 });
 
+const answerLocked = computed(() => Boolean(result.value) || isReviewMode.value);
 const answers = reactive<Record<number, string | string[]>>({});
 const unansweredQuestionIds = ref<Set<number>>(new Set());
 const questionFeedbackState = reactive<Record<number, FeedbackType | null>>({});
@@ -369,25 +504,29 @@ const flagReasons = [
   { value: "unclear_explanation" as FlagReason, label: "解析不清楚" },
 ];
 
-const resultByQuestion = computed<Record<number, AnswerResult>>(() => {
-  const rows: Record<number, AnswerResult> = {};
+const resultByQuestion = computed<Record<number, AnswerResult | AnswerReviewResult>>(() => {
+  const rows: Record<number, AnswerResult | AnswerReviewResult> = {};
   for (const item of result.value?.results ?? []) rows[item.question_id] = item;
   return rows;
 });
 
+function resetAnswerState() {
+  result.value = null;
+  isReviewMode.value = false;
+  unansweredQuestionIds.value = new Set();
+  flagPanelQuestionId.value = null;
+  Object.keys(answers).forEach((key) => delete answers[Number(key)]);
+}
+
 function selectChapter(chapterId: number) {
   selectedChapterId.value = chapterId;
   practiceMode.value = "chapter";
-  session.value = null;
-  result.value = null;
   emit("modeChange", "chapter");
 }
 
 function selectFinalReview() {
   practiceMode.value = "final_review";
   selectedChapterId.value = null;
-  session.value = null;
-  result.value = null;
   emit("modeChange", "final_review");
 }
 
@@ -396,6 +535,7 @@ function multiAnswer(questionId: number) {
 }
 
 function toggleMulti(questionId: number, key: string) {
+  if (answerLocked.value) return;
   const current = new Set(multiAnswer(questionId));
   if (current.has(key)) current.delete(key);
   else current.add(key);
@@ -412,12 +552,16 @@ function blankAnswer(questionId: number, index: number) {
 }
 
 function setBlankAnswer(questionId: number, index: number, value: string) {
+  if (answerLocked.value) return;
   const current = Array.isArray(answers[questionId]) ? [...(answers[questionId] as string[])] : [];
   current[index] = value;
   answers[questionId] = current;
 }
 
-function isAnswered(question: Question) {
+function isAnswered(question: Question): boolean {
+  if (question.type === "question_group") {
+    return question.children.length > 0 && question.children.every((child) => isAnswered(child));
+  }
   const answer = answers[question.id];
   if (question.type === "multiple_choice") return Array.isArray(answer) && answer.length > 0;
   if (question.type === "fill_blank" || question.type === "cloze") {
@@ -428,13 +572,30 @@ function isAnswered(question: Question) {
 }
 
 function reviewDotClass(questionId: number) {
+  const question = session.value?.questions.find((item) => item.id === questionId);
+  const childResults = question?.type === "question_group"
+    ? question.children.map((child) => resultByQuestion.value[child.id]).filter(Boolean)
+    : [];
+  const groupDone = question?.type === "question_group" && childResults.length === question.children.length && childResults.length > 0;
   const resultItem = resultByQuestion.value[questionId];
   return {
     answered: session.value?.questions.some((question) => question.id === questionId && isAnswered(question)),
     missing: unansweredQuestionIds.value.has(questionId),
-    correct: Boolean(resultItem?.is_correct),
-    wrong: Boolean(resultItem && !resultItem.is_correct),
+    correct: resultItem?.is_correct === true || (groupDone && childResults.every((item) => item.is_correct === true)),
+    wrong: resultItem?.is_correct === false || (groupDone && childResults.some((item) => item.is_correct === false)),
   };
+}
+
+function resultStatusClass(questionId: number) {
+  const resultItem = resultByQuestion.value[questionId];
+  return resultItem?.is_correct === true ? "ok" : resultItem?.is_correct === false ? "bad" : "";
+}
+
+function resultStatusText(questionId: number) {
+  const resultItem = resultByQuestion.value[questionId];
+  if (resultItem?.is_correct === true) return "正确";
+  if (resultItem?.is_correct === false) return "需要复盘";
+  return "未批改";
 }
 
 function jumpToQuestion(questionId: number) {
@@ -449,12 +610,37 @@ function formatAnswer(value: unknown) {
   return String(value ?? "");
 }
 
+function scoreText(value: number | null) {
+  return value === null ? "-" : value.toFixed(1);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function historyTitle(item: PracticeHistoryItem) {
+  if (item.mode === "final_review") return "总复习";
+  if (item.mode === "wrong_questions") return "错题重练";
+  return item.chapter_title ? `第 ${item.chapter_id} 章：${item.chapter_title}` : "章节练习";
+}
+
+function answerableQuestions(questions: Question[]) {
+  return questions.flatMap((question) => question.type === "question_group" ? question.children : [question]);
+}
+
+async function loadHistory() {
+  historyItems.value = await api.practiceHistory();
+}
+
 async function startPractice() {
   loading.value = true;
   error.value = "";
-  result.value = null;
-  unansweredQuestionIds.value = new Set();
-  Object.keys(answers).forEach((key) => delete answers[Number(key)]);
+  resetAnswerState();
   try {
     session.value = await api.createPractice({
       mode: practiceMode.value,
@@ -462,10 +648,11 @@ async function startPractice() {
       question_count: questionCount.value,
       question_types: selectedQuestionType.value ? [selectedQuestionType.value] : undefined,
       source_scope: practiceSourceScope.value,
-      user_id: "demo",
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) {
     error.value = err instanceof Error ? err.message : "创建练习失败";
+    session.value = null;
   } finally {
     loading.value = false;
   }
@@ -473,7 +660,8 @@ async function startPractice() {
 
 async function submitPractice() {
   if (!session.value) return;
-  const missing = session.value.questions.filter((question) => !isAnswered(question)).map((question) => question.id);
+  const answerable = answerableQuestions(session.value.questions);
+  const missing = answerable.filter((question) => !isAnswered(question)).map((question) => question.id);
   if (missing.length) {
     unansweredQuestionIds.value = new Set(missing);
     error.value = `还有 ${missing.length} 道题未作答，请补全后再提交。`;
@@ -484,7 +672,7 @@ async function submitPractice() {
   error.value = "";
   unansweredQuestionIds.value = new Set();
   try {
-    const submitted = session.value.questions.map((question) => ({
+    const submitted = answerable.map((question) => ({
       question_id: question.id,
       user_answer:
         question.type === "fill_blank" || question.type === "cloze"
@@ -494,6 +682,7 @@ async function submitPractice() {
           : answers[question.id] ?? "",
     }));
     result.value = await api.submitPractice(session.value.id, submitted);
+    await loadHistory();
     emit("refresh");
   } catch (err) {
     error.value = err instanceof Error ? err.message : "提交失败";
@@ -505,24 +694,68 @@ async function submitPractice() {
 async function startWrongPractice() {
   loading.value = true;
   error.value = "";
-  result.value = null;
-  unansweredQuestionIds.value = new Set();
-  Object.keys(answers).forEach((key) => delete answers[Number(key)]);
+  resetAnswerState();
   try {
     session.value = await api.createPractice({
       mode: "wrong_questions",
       question_count: questionCount.value || 10,
       source_scope: practiceSourceScope.value,
-      user_id: "demo",
     });
     practiceMode.value = "wrong_questions";
     selectedChapterId.value = session.value.chapter_id;
     emit("modeChange", "wrong_questions");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) {
     error.value = err instanceof Error ? err.message : "创建错题练习失败";
+    session.value = null;
   } finally {
     loading.value = false;
   }
+}
+
+async function openHistory(sessionId: number) {
+  loading.value = true;
+  error.value = "";
+  resetAnswerState();
+  try {
+    const review = await api.reviewPractice(sessionId);
+    session.value = {
+      id: review.id,
+      mode: review.mode,
+      chapter_id: review.chapter_id,
+      question_count: review.question_count,
+      score: review.score,
+      started_at: review.started_at,
+      submitted_at: review.submitted_at,
+      questions: review.questions,
+    };
+    for (const item of review.results) {
+      answers[item.question_id] = Array.isArray(item.user_answer)
+        ? item.user_answer.map((value) => String(value ?? ""))
+        : String(item.user_answer ?? "");
+    }
+    result.value = {
+      session_id: review.id,
+      score: review.score ?? 0,
+      total: review.results.length,
+      results: review.results,
+    };
+    isReviewMode.value = true;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "打开练习记录失败";
+    session.value = null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function exitPractice() {
+  session.value = null;
+  resetAnswerState();
+  await loadHistory();
+  emit("refresh");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function generateAiQuestions() {
@@ -554,7 +787,6 @@ async function toggleFeedback(question: Question, feedbackType: FeedbackType) {
     if (feedbackType === "helpful") question.likes = Math.max(0, question.likes - 1);
     question.user_liked = false;
   } else {
-    const prevType = current;
     const fbResult = await api.submitFeedback(question.id, feedbackType);
     questionFeedbackState[question.id] = feedbackType;
     question.likes = fbResult.likes;
@@ -583,6 +815,7 @@ onMounted(async () => {
   } catch {
     aiEnabled.value = false;
   }
+  await loadHistory();
 });
 
 defineExpose({ startWrongPractice, selectedChapterId });

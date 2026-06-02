@@ -41,3 +41,32 @@ def test_fill_blank_scores_partial_matches() -> None:
     assert is_correct is False
     assert score == 0.5
     assert feedback == "填空匹配 1/2"
+
+
+def test_fill_blank_normalizes_spacing_case_and_punctuation() -> None:
+    answer = {"blanks": [{"index": 1, "answer": "Cache", "acceptable_answers": ["高速缓存"]}]}
+
+    is_correct, score, _ = grade_answer("fill_blank", answer, [" cache，"], [])
+
+    assert is_correct is True
+    assert score == 1.0
+
+
+def test_calculation_accepts_numeric_tolerance() -> None:
+    answer = {"reference_answer": "平均访问时间为 10.5 ns"}
+
+    is_correct, score, feedback = grade_answer("calculation", answer, "10.51ns", {"tolerance": 0.02})
+
+    assert is_correct is True
+    assert score == 1.0
+    assert feedback == "计算结果匹配 1/1"
+
+
+def test_short_answer_matches_normalized_rubric_items() -> None:
+    answer = {"reference_answer": "Cache 利用局部性原理提高访存速度。"}
+
+    is_correct, score, feedback = grade_answer("short_answer", answer, "cache利用局部性原理，提高速度", ["Cache", "局部性原理", "访存速度"])
+
+    assert is_correct is True
+    assert round(score, 2) == 0.67
+    assert feedback == "关键词/评分点命中 2/3"

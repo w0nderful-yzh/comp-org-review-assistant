@@ -26,7 +26,7 @@ from app.models.entities import Chapter, KnowledgeChunk, Question
 from app.schemas.api import AiQuestionDraftCreate
 from app.services.ai_generation import AiGenerationError, generate_question_drafts
 
-ALL_TYPES = ["single_choice", "multiple_choice", "true_false", "fill_blank", "short_answer", "calculation"]
+ALL_TYPES = ["single_choice", "multiple_choice", "true_false", "fill_blank", "calculation"]
 BATCH_SIZE = 5  # max per API call
 
 

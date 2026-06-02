@@ -46,6 +46,7 @@ class ParsedQuestion:
     explanation: str | None
     source_assignment: str
     source_context: str
+    parent_source_context: str | None = None
 
 
 def clean_text(value: str) -> str:
@@ -221,6 +222,7 @@ def parse_question(
     source_assignment: str,
     source_context: str,
     parent_context: str | None = None,
+    parent_source_context: str | None = None,
 ) -> ParsedQuestion | None:
     kind = question_kind(meta)
     if kind not in SUPPORTED_TYPES:
@@ -256,6 +258,7 @@ def parse_question(
         explanation=explanation,
         source_assignment=source_assignment,
         source_context=source_context,
+        parent_source_context=parent_source_context,
     )
 
 
@@ -275,7 +278,21 @@ def parse_reading_block(
         len(lines),
     )
     parent_context = compact_lines(lines[:first_sub_match_index])
-    parsed: list[ParsedQuestion] = []
+    parent_source_context = f"{path.as_posix()}#{number}"
+    parsed: list[ParsedQuestion] = [
+        ParsedQuestion(
+            chapter_id=chapter_id,
+            question_type="question_group",
+            difficulty="medium",
+            stem=parent_context,
+            options=[],
+            answer={},
+            rubric=[],
+            explanation=None,
+            source_assignment=source_assignment,
+            source_context=parent_source_context,
+        )
+    ]
     for sub_number, meta, sub_lines in subblocks:
         item = parse_question(
             chapter_id=chapter_id,
@@ -284,11 +301,11 @@ def parse_reading_block(
             lines=sub_lines,
             source_assignment=source_assignment,
             source_context=f"{path.as_posix()}#{number}.{sub_number}",
-            parent_context=parent_context,
+            parent_source_context=parent_source_context,
         )
         if item:
             parsed.append(item)
-    return parsed
+    return parsed if len(parsed) > 1 else []
 
 
 def parse_file(path: Path) -> tuple[list[ParsedQuestion], dict[str, int]]:
@@ -331,8 +348,9 @@ def parse_file(path: Path) -> tuple[list[ParsedQuestion], dict[str, int]]:
     return parsed, stats
 
 
-def sync_question(row: Question, item: ParsedQuestion, reviewed: bool) -> None:
+def sync_question(row: Question, item: ParsedQuestion, reviewed: bool, parent_id: int | None = None) -> None:
     row.chapter_id = item.chapter_id
+    row.parent_question_id = parent_id
     row.type = item.question_type
     row.difficulty = item.difficulty
     row.stem = item.stem
@@ -352,6 +370,11 @@ def import_questions(questions: list[ParsedQuestion], reviewed: bool) -> tuple[i
     skipped = 0
     with SessionLocal() as db:
         for item in questions:
+            parent_id = None
+            if item.parent_source_context:
+                parent_id = db.scalar(
+                    select(Question.id).where(Question.source_context == item.parent_source_context)
+                )
             existing = db.scalar(
                 select(Question).where(Question.source_context == item.source_context)
             )
@@ -361,9 +384,9 @@ def import_questions(questions: list[ParsedQuestion], reviewed: bool) -> tuple[i
                         Question.source_assignment == item.source_assignment,
                         Question.stem == item.stem,
                     )
-                )
+            )
             if existing:
-                sync_question(existing, item, reviewed)
+                sync_question(existing, item, reviewed, parent_id)
                 updated += 1
                 continue
 
@@ -376,24 +399,24 @@ def import_questions(questions: list[ParsedQuestion], reviewed: bool) -> tuple[i
             if equivalent:
                 skipped += 1
                 continue
-            db.add(
-                Question(
-                    chapter_id=item.chapter_id,
-                    knowledge_point_id=None,
-                    parent_question_id=None,
-                    type=item.question_type,
-                    difficulty=item.difficulty,
-                    stem=item.stem,
-                    options_json=item.options,
-                    answer_json=item.answer,
-                    rubric_json=item.rubric,
-                    explanation=item.explanation,
-                    source_context=item.source_context,
-                    source_assignment=item.source_assignment,
-                    is_ai_generated=False,
-                    is_reviewed=reviewed,
-                )
+            row = Question(
+                chapter_id=item.chapter_id,
+                knowledge_point_id=None,
+                parent_question_id=parent_id,
+                type=item.question_type,
+                difficulty=item.difficulty,
+                stem=item.stem,
+                options_json=item.options,
+                answer_json=item.answer,
+                rubric_json=item.rubric,
+                explanation=item.explanation,
+                source_context=item.source_context,
+                source_assignment=item.source_assignment,
+                is_ai_generated=False,
+                is_reviewed=reviewed,
             )
+            db.add(row)
+            db.flush()
             inserted += 1
         db.commit()
     return inserted, updated, skipped

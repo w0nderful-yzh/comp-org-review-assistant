@@ -22,7 +22,8 @@ export function useSharedState() {
       multiple_choice: "多选",
       true_false: "判断",
       fill_blank: "填空",
-      short_answer: "简答",
+      calculation: "计算",
+      question_group: "阅读理解",
     };
     return labels[type] ?? type;
   }

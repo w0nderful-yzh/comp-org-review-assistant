@@ -118,36 +118,40 @@ npm run dev
 
 ```bash
 # 创建 .env 文件并配置
-cp .env.example .env
-# 编辑 .env 填入生产环境配置
+cp .env.production.example .env
+# 编辑 .env，至少修改 POSTGRES_PASSWORD、SECRET_KEY。
+# 有域名后把 PUBLIC_SITE_ADDRESS 改为你的域名，例如 review.example.com。
 
 # 启动所有服务
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d --build
 
-# 初始化数据库（首次部署）
-docker exec -i comp-org-postgres psql -U comp_org -d comp_org_review < docker/postgres/init/001_schema.sql
-docker exec -i comp-org-postgres psql -U comp_org -d comp_org_review < docker/postgres/init/002_question_feedback.sql
-docker exec -i comp-org-postgres psql -U comp_org -d comp_org_review < docker/postgres/init/003_question_source.sql
-docker exec -i comp-org-postgres psql -U comp_org -d comp_org_review < docker/postgres/init/004_user_auth.sql
+# 首次创建 postgres_data 数据卷时，docker/postgres/init/*.sql 会自动初始化数据库。
 
 # 导入数据
 docker exec -it comp-org-backend python scripts/seed_sample_questions.py
 docker exec -it comp-org-backend python scripts/import_homework_questions.py
 docker exec -it comp-org-backend python scripts/import_review_notes.py
+
+# 可选：提前批量生成 AI 题
+docker exec -it comp-org-backend python scripts/batch_generate_ai.py
 ```
 
-访问 http://localhost (Nginx 反向代理)
+访问 `http://服务器IP`。绑定域名并把 `.env` 中的 `PUBLIC_SITE_ADDRESS` 改成域名后，Caddy 会自动申请 HTTPS 证书。
 
 ### 环境变量说明
 
 | 变量名 | 说明 |
 |--------|------|
+| `PUBLIC_SITE_ADDRESS` | 公网访问地址，临时 IP 部署用 `:80`，域名部署用真实域名 |
+| `CORS_ORIGINS` | 允许跨域访问的前端来源，通常填公网 HTTP/HTTPS 地址 |
 | `AI_API_KEY` | AI 服务 API Key |
 | `AI_BASE_URL` | AI 服务地址 |
-| `AI_MODEL_NAME` | AI 模型名称 |
+| `AI_MODEL` | AI 模型名称 |
+| `AI_ENABLED` | 是否启用 AI 出题 |
+| `COURSEWARE_PDF_DIR` | 课件 PDF 目录，生产容器默认 `/materials/courseware-pdfs` |
 | `SECRET_KEY` | JWT 认证密钥 |
 | `TOKEN_ALGORITHM` | JWT 算法 (默认 HS256) |
-| `TOKEN_EXPIRE_MINUTES` | Token 过期时间 (默认 480 分钟) |
+| `TOKEN_EXPIRE_MINUTES` | Token 过期时间 (默认 1440 分钟) |
 
 ## 目录结构
 

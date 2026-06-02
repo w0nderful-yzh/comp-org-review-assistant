@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -55,8 +54,6 @@ logger = get_logger(__name__)
 
 UNHELPFUL_ARCHIVE_THRESHOLD = 3
 DAILY_AI_LIMIT = 50
-REPO_ROOT = Path(__file__).resolve().parents[3]
-COURSEWARE_DIR = REPO_ROOT / "materials" / "courseware-pdfs"
 
 FLAG_SCORE_MAP = {
     "answer_error": (-5, 1),     # (quality_delta, error_count_delta)
@@ -508,6 +505,17 @@ def search_knowledge(
             KnowledgeChunk.content.ilike(f"%{query}%"),
         )
     ]
+    if chapter_id:
+        conditions.append(KnowledgeChunk.chapter_id == chapter_id)
+
+    total = db.scalar(select(func.count(KnowledgeChunk.id)).where(*conditions)) or 0
+    chunks = db.scalars(
+        select(KnowledgeChunk)
+        .where(*conditions)
+        .order_by(KnowledgeChunk.chapter_id, KnowledgeChunk.chunk_id)
+        .limit(limit)
+    ).all()
+    return KnowledgeSearchOut(items=[knowledge_chunk_out(chunk) for chunk in chunks], total=total)
 
 
 @router.get("/chapters/{chapter_id}/courseware-pdf")
@@ -520,7 +528,8 @@ def get_chapter_courseware_pdf(
     chapter = db.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="Chapter not found")
-    pdf_path = COURSEWARE_DIR / f"chapter-{chapter.order_index:02d}-courseware.pdf"
+    pdf_dir = get_settings().courseware_pdf_dir
+    pdf_path = pdf_dir / f"chapter-{chapter.order_index:02d}-courseware.pdf"
     if not pdf_path.is_file():
         raise HTTPException(status_code=404, detail="Courseware PDF not found")
     filename = f"第{chapter.order_index}章-{chapter.title}-课件.pdf"
@@ -530,17 +539,6 @@ def get_chapter_courseware_pdf(
         filename=filename,
         content_disposition_type="attachment" if download else "inline",
     )
-    if chapter_id:
-        conditions.append(KnowledgeChunk.chapter_id == chapter_id)
-
-    total = db.scalar(select(func.count(KnowledgeChunk.id)).where(*conditions)) or 0
-    chunks = db.scalars(
-        select(KnowledgeChunk)
-        .where(*conditions)
-        .order_by(KnowledgeChunk.chapter_id, KnowledgeChunk.chunk_id)
-        .limit(limit)
-    ).all()
-    return KnowledgeSearchOut(items=[knowledge_chunk_out(chunk) for chunk in chunks], total=total)
 
 
 @router.get("/questions", response_model=list[QuestionReviewOut])

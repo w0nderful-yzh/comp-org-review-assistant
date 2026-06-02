@@ -78,8 +78,16 @@
       <StatsView v-else-if="activeView === 'stats'" ref="statsRef" />
       <KnowledgeView v-else-if="activeView === 'knowledge'" ref="knowledgeRef" />
 
-      <footer class="app-disclaimer">
-        <p>本系统知识库从 HDU 教学课件中提取，仅供学习参考。AI 生成内容可能存在错误，请结合教材使用。本系统不保证与教材完全一致，使用者应自行承担使用风险。</p>
+      <footer class="app-footer">
+        <div class="footer-disclaimer">
+          <p>本系统知识库从 HDU 教学课件中提取，仅供学习参考。AI 生成内容可能存在错误，请结合教材使用。本系统不保证与教材完全一致，使用者应自行承担使用风险。</p>
+        </div>
+        <div class="footer-contact">
+          <span>遇到问题或有建议？欢迎反馈：</span>
+          <a href="mailto:3353291703@qq.com">📧 3353291703@qq.com</a>
+          <span class="divider">|</span>
+          <a href="https://github.com/w0nderful-yzh" target="_blank" rel="noopener">🐙 GitHub</a>
+        </div>
       </footer>
     </section>
   </main>
@@ -215,18 +223,46 @@ watch(isAuthenticated, async (newValue) => {
   color: #00ff88;
 }
 
-.app-disclaimer {
-  padding: 12px 20px;
+.app-footer {
   margin-top: auto;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   background: #fafafa;
 }
 
-.app-disclaimer p {
+.footer-disclaimer {
+  padding: 12px 20px 8px;
+}
+
+.footer-disclaimer p {
   margin: 0;
   font-size: 11px;
   line-height: 1.5;
   color: #9ca3af;
   text-align: center;
+}
+
+.footer-contact {
+  padding: 0 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.footer-contact a {
+  color: #4f46e5;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-contact a:hover {
+  color: #7c3aed;
+  text-decoration: underline;
+}
+
+.footer-contact .divider {
+  color: #d1d5db;
 }
 </style>

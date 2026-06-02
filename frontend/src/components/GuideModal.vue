@@ -2,15 +2,17 @@
   <div class="guide-overlay" @click.self="close">
     <div class="guide-modal">
       <div class="guide-header">
-        <div class="header-icon">📖</div>
-        <h2>欢迎使用计组复习助手</h2>
-        <p class="subtitle">使用指南与注意事项</p>
+        <div class="hero-copy">
+          <span class="hero-badge">DOUBLE MODE</span>
+          <h2>今天复习，先开双形态</h2>
+          <p class="subtitle">左手雪碧提神，右手巧克力补能，计组薄弱点一个都别想跑。</p>
+        </div>
       </div>
 
       <div class="guide-content">
         <div class="guide-section">
-          <h3><span class="section-icon">🎯</span> 系统功能</h3>
-          <p>本系统帮助你高效复习《计算机组成原理》，提供智能练习和学习统计功能。</p>
+          <h3><span class="section-icon">🎯</span> 今日作战目标</h3>
+          <p>本系统负责把《计算机组成原理》的知识点、错题和练习记录串起来。你负责点开始，然后把 CPU、Cache、总线这些老朋友逐个拿下。</p>
         </div>
 
         <div class="guide-section">
@@ -62,12 +64,12 @@
         </div>
 
         <div class="guide-section tip-section">
-          <h3><span class="section-icon">💡</span> 学习建议</h3>
+          <h3><span class="section-icon">💡</span> 变身建议</h3>
           <ul class="notice-list">
-            <li>建议先完成"只做原题"模式，熟悉基础知识点</li>
-            <li>使用"标准练习"巩固知识，包含社区验证的优质AI题</li>
-            <li>关注学习统计中的章节掌握度，查漏补缺</li>
-            <li>定期进行错题复盘，强化薄弱环节</li>
+            <li>状态一般时先做"只做原题"，像热身一样把基础肌肉叫醒</li>
+            <li>想提速就切"标准练习"，原题和优质AI题一起上强度</li>
+            <li>看到章节掌握度掉线，就去薄弱专项里补电</li>
+            <li>错题本不是黑历史，是你的隐藏强化素材库</li>
           </ul>
         </div>
       </div>
@@ -83,7 +85,7 @@
           <span>下次不再显示</span>
         </label>
         <button class="start-btn" @click="close">
-          <span>开始学习</span>
+          <span>开刷，变身</span>
           <span class="btn-arrow">→</span>
         </button>
       </div>
@@ -135,26 +137,66 @@ const close = () => {
 }
 
 .guide-header {
-  text-align: center;
-  padding: 24px 24px 16px;
+  position: relative;
+  min-height: 230px;
+  overflow: hidden;
   border-bottom: 1px solid #e5e7eb;
+  background:
+    linear-gradient(180deg, rgba(5, 18, 14, 0.08), rgba(5, 18, 14, 0.78)),
+    linear-gradient(90deg, rgba(5, 18, 14, 0.72), rgba(5, 18, 14, 0.08) 45%, rgba(5, 18, 14, 0.55)),
+    url("/assets/guide-hero-combo.jpg") center 36% / cover;
 }
 
-.header-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
+.guide-header::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 78px;
+  content: "";
+  background: linear-gradient(180deg, transparent, #ffffff);
+  pointer-events: none;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  max-width: 380px;
+  gap: 8px;
+  padding: 118px 24px 28px;
+  color: #ffffff;
+  text-align: left;
+}
+
+.hero-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 26px;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  color: #fff3b0;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 .guide-header h2 {
   margin: 0;
-  font-size: 22px;
-  color: #1f2937;
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1.12;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
 }
 
 .subtitle {
-  margin: 4px 0 0;
-  color: #6b7280;
+  max-width: 340px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
+  line-height: 1.55;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 .guide-content {
@@ -298,7 +340,7 @@ const close = () => {
   align-items: center;
   gap: 8px;
   padding: 10px 24px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #0f8f4e, #5a2a16);
   color: white;
   border: none;
   border-radius: 8px;
@@ -310,7 +352,22 @@ const close = () => {
 
 .start-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 4px 12px rgba(15, 143, 78, 0.36);
+}
+
+@media (max-width: 560px) {
+  .guide-header {
+    min-height: 210px;
+    background-position: center 24%;
+  }
+
+  .hero-copy {
+    padding: 104px 18px 24px;
+  }
+
+  .guide-header h2 {
+    font-size: 24px;
+  }
 }
 
 .btn-arrow {

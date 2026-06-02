@@ -190,8 +190,8 @@ button {
 
 .practice-setup {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 18px;
   align-items: start;
 }
 
@@ -770,8 +770,12 @@ button {
   gap: 4px;
 }
 
-.wrong-toolbar span {
+.wrong-toolbar > div span {
   color: var(--muted);
+}
+
+.wrong-toolbar .primary-button span {
+  color: #ffffff;
 }
 
 .stats-grid {

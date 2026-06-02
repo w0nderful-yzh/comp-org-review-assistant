@@ -17,20 +17,104 @@
 
     <div v-if="!session" class="practice-setup">
       <section class="practice-setup-main">
-        <div class="section-title">
-          <p class="eyebrow">Practice Setup</p>
-          <h3>{{ setupTitle }}</h3>
+        <section class="study-dashboard" aria-label="今日学习状态">
+          <div class="study-overview-card">
+            <div class="today-status">
+              <div>
+                <p class="eyebrow">Today</p>
+                <h3>今日学习状态</h3>
+                <p>{{ todayAdviceText }}</p>
+              </div>
+              <div class="mastery-meter" :style="{ '--mastery': `${overallMastery}%` }">
+                <strong>{{ overallMastery }}%</strong>
+                <span>掌握度</span>
+              </div>
+            </div>
+
+            <div class="study-metrics">
+              <div class="metric-pill">
+                <ClipboardList :size="16" />
+                <span>作答</span>
+                <strong>{{ overview?.total_answers ?? 0 }}</strong>
+              </div>
+              <div class="metric-pill">
+                <Target :size="16" />
+                <span>正确率</span>
+                <strong>{{ percent(overview?.correct_rate ?? 0) }}</strong>
+              </div>
+              <div class="metric-pill">
+                <AlertTriangle :size="16" />
+                <span>薄弱章节</span>
+                <strong>{{ weakChapterCount }}</strong>
+              </div>
+              <div class="metric-pill">
+                <History :size="16" />
+                <span>最近练习</span>
+                <strong>{{ recentPracticeLabel }}</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="daily-recommendation">
+          <div class="recommendation-copy">
+            <p class="eyebrow">Recommended</p>
+            <h3>{{ recommendationTitle }}</h3>
+            <p>{{ recommendationReason }}</p>
+            <div class="recommendation-tags">
+              <span>{{ recommendationAction }}</span>
+              <span>预计 {{ recommendedMinutes }} 分钟</span>
+            </div>
+          </div>
+          <button class="primary-button recommendation-button" :disabled="loading" @click="startRecommendedPractice">
+            <Play :size="18" />
+            <span>立即开始推荐训练</span>
+          </button>
+        </section>
+
+        <section class="smart-practice-entry">
+          <div class="section-title">
+            <p class="eyebrow">Smart Practice</p>
+            <h3>智能练习入口</h3>
+          </div>
+          <div class="smart-entry-grid">
+            <button class="smart-entry-card" :class="{ selected: selectedSmartMode === 'sprint' }" @click="selectSmartPractice('sprint')">
+              <Gauge :size="20" />
+              <strong>考前冲刺</strong>
+              <span>混合错题、高频题与薄弱章节。</span>
+            </button>
+            <button class="smart-entry-card" :class="{ selected: selectedSmartMode === 'weak' }" @click="selectSmartPractice('weak')">
+              <Target :size="20" />
+              <strong>薄弱专项</strong>
+              <span>优先训练正确率较低的章节。</span>
+            </button>
+            <button class="smart-entry-card" :class="{ selected: selectedSmartMode === 'wrong' }" @click="selectSmartPractice('wrong')">
+              <RotateCcw :size="20" />
+              <strong>错题重刷</strong>
+              <span>重新检查历史错题是否掌握。</span>
+            </button>
+            <button class="smart-entry-card" :class="{ selected: selectedSmartMode === 'mock' }" @click="selectSmartPractice('mock')">
+              <Shuffle :size="20" />
+              <strong>综合模拟</strong>
+              <span>跨章节随机组题，检验整体状态。</span>
+            </button>
+          </div>
+        </section>
+
+        <div class="section-title compact-section-title">
+          <p class="eyebrow">Chapters</p>
+          <h3>章节练习入口</h3>
         </div>
 
         <div class="chapter-choice-grid">
           <button
             class="chapter-row final-row"
-            :class="{ selected: practiceMode === 'final_review' }"
+            :class="{ selected: practiceMode === 'final_review' && selectedSmartMode === null }"
             @click="selectFinalReview"
           >
             <div>
               <strong>总复习</strong>
-              <span>跨章节随机抽题</span>
+              <span>跨章节随机抽题 · {{ totalQuestionCount }} 道可练</span>
             </div>
             <Shuffle :size="18" />
           </button>
@@ -42,9 +126,28 @@
             :class="{ selected: selectedChapterId === chapter.id && practiceMode === 'chapter' }"
             @click="selectChapter(chapter.id)"
           >
-            <div>
-              <strong>第 {{ chapter.order_index }} 章：{{ chapter.title }}</strong>
-              <span>{{ chapter.question_count }} 道题</span>
+            <div class="chapter-card-body">
+              <div class="chapter-card-head">
+                <strong>第 {{ chapter.order_index }} 章：{{ chapter.title }}</strong>
+                <span class="chapter-status" :class="chapterStatusClass(chapter.id)">
+                  {{ chapterStatusLabel(chapter.id) }}
+                </span>
+              </div>
+              <span>{{ chapter.question_count }} 道题 · 已练 {{ chapterStat(chapter.id)?.answered ?? 0 }} 道</span>
+              <div class="chapter-progress">
+                <div class="progress-track">
+                  <div
+                    class="progress-fill"
+                    :class="chapterStatusClass(chapter.id)"
+                    :style="{ width: percent((chapterStat(chapter.id)?.mastery_score ?? 0) / 100) }"
+                  ></div>
+                </div>
+                <b>{{ chapterStat(chapter.id)?.mastery_score ?? 0 }}分</b>
+              </div>
+              <div class="chapter-mini-stats">
+                <span>正确率 {{ percent(chapterStat(chapter.id)?.correct_rate ?? 0) }}</span>
+                <span>覆盖率 {{ percent(chapterStat(chapter.id)?.coverage ?? 0) }}</span>
+              </div>
             </div>
             <ChevronRight :size="18" />
           </button>
@@ -83,10 +186,22 @@
       </section>
 
       <aside class="practice-setup-side">
-        <section class="practice-panel setup-card">
+        <section class="practice-panel setup-card planner-card">
+          <div class="planner-summary">
+            <p class="eyebrow">Current Plan</p>
+            <h3>{{ plannerTitle }}</h3>
+            <p>{{ plannerDescription }}</p>
+            <div class="planner-stat-grid">
+              <span v-for="item in plannerStats" :key="item.label">
+                {{ item.label }}
+                <strong>{{ item.value }}</strong>
+              </span>
+            </div>
+          </div>
+
           <div class="controls setup-controls">
             <label>
-              <span>题量</span>
+              <span>本组题量</span>
               <input v-model.number="questionCount" type="number" min="1" max="30" />
             </label>
             <label>
@@ -124,14 +239,14 @@
               <span v-else-if="practiceSourceScope === 'ai_pool'">练习社区共享的优质AI题库</span>
               <span v-else-if="practiceSourceScope === 'ai_new'">实时生成全新AI题目进行练习</span>
             </div>
-            <button class="primary-button" :disabled="loading" @click="startPractice">
+            <button class="primary-button" :disabled="loading" @click="startSelectedPractice">
               <template v-if="loading && practiceSourceScope === 'ai_new'">
                 <Sparkles :size="18" class="generating-icon" />
                 <span>生成中...</span>
               </template>
               <template v-else>
                 <Play :size="18" />
-                <span>开始</span>
+                <span>开始{{ plannerButtonLabel }}</span>
               </template>
             </button>
           </div>
@@ -470,34 +585,42 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   Eye,
+  Gauge,
   History,
   Play,
+  RefreshCw,
+  RotateCcw,
   Shuffle,
   Sparkles,
+  Target,
   ThumbsDown,
   ThumbsUp,
   Trash2,
   X,
 } from "@lucide/vue";
-import { api, type AnswerResult, type AnswerReviewResult, type FeedbackType, type FlagReason, type PracticeHistoryItem, type PracticeResult, type PracticeSession, type Question, type QuestionType, type SourceScope } from "../api/client";
+import { api, type AllQuestionsCompleted, type AnswerResult, type AnswerReviewResult, type ChapterStatistics, type FeedbackType, type FlagReason, type PracticeHistoryItem, type PracticeResult, type PracticeSession, type Question, type QuestionType, type SourceScope, type StudyRecommendation } from "../api/client";
 import { useSharedState } from "../composables/useSharedState";
 
 type DisplayResult = Omit<PracticeResult, "results"> & {
   results: Array<AnswerResult | AnswerReviewResult>;
 };
 
+type SmartPracticeMode = "sprint" | "weak" | "wrong" | "mock";
+
 const emit = defineEmits<{
   refresh: [];
   modeChange: [mode: string];
 }>();
 
-const { chapters, typeLabel, difficultyLabel, sourceTagClass } = useSharedState();
+const { chapters, overview, percent, typeLabel, difficultyLabel, sourceTagClass } = useSharedState();
 
 const session = ref<PracticeSession | null>(null);
 const result = ref<DisplayResult | null>(null);
 const isReviewMode = ref(false);
 const practiceMode = ref<"chapter" | "final_review" | "wrong_questions">("chapter");
+const selectedSmartMode = ref<SmartPracticeMode | null>(null);
 const selectedChapterId = ref<number | null>(1);
 const selectedQuestionType = ref<QuestionType | "">("");
 const practiceSourceScope = ref<SourceScope>("standard");
@@ -511,6 +634,8 @@ const aiLoading = ref(false);
 const aiMessage = ref("");
 const flagPanelQuestionId = ref<number | null>(null);
 const historyItems = ref<PracticeHistoryItem[]>([]);
+const chapterStats = ref<ChapterStatistics[]>([]);
+const recommendations = ref<StudyRecommendation[]>([]);
 const allQuestionsCompleted = ref<{
   message: string;
   total_questions: number;
@@ -549,6 +674,119 @@ const aiChapterLabel = computed(() => {
   return "自动选择题目最少的章节";
 });
 
+const chapterStatsById = computed(() => new Map(chapterStats.value.map((item) => [item.chapter_id, item])));
+
+const totalQuestionCount = computed(() => {
+  const chapterTotal = chapters.value.reduce((sum, chapter) => sum + chapter.question_count, 0);
+  if (chapterTotal) return chapterTotal;
+  return chapterStats.value.reduce((sum, stat) => sum + stat.total_questions, 0);
+});
+
+const overallMastery = computed(() => {
+  const withQuestions = chapterStats.value.filter((item) => item.total_questions > 0);
+  const total = withQuestions.reduce((sum, item) => sum + item.total_questions, 0);
+  if (!total) return 0;
+  const weighted = withQuestions.reduce((sum, item) => sum + item.mastery_score * item.total_questions, 0);
+  return Math.round(weighted / total);
+});
+
+const weakChapterCount = computed(() => chapterStats.value.filter((item) => item.answered > 0 && item.mastery_score < 50).length);
+
+const primaryRecommendation = computed(() => {
+  if (recommendations.value.length) return recommendations.value[0];
+  const unpracticed = chapterStats.value.find((item) => item.answered === 0);
+  if (!unpracticed) return null;
+  return {
+    chapter_id: unpracticed.chapter_id,
+    chapter_title: unpracticed.chapter_title,
+    answered: 0,
+    correct_rate: 0,
+    wrong_count: 0,
+    reason: "还没有练习记录",
+    action: "先做 5 道基础混合题建立基线",
+    priority: 100,
+  } satisfies StudyRecommendation;
+});
+
+const recentPracticeLabel = computed(() => {
+  const latest = historyItems.value[0];
+  if (!latest) return "暂无";
+  if (latest.mode === "final_review") return "总复习";
+  if (latest.mode === "wrong_questions") return "错题重练";
+  const chapter = chapters.value.find((item) => item.id === latest.chapter_id);
+  return chapter ? `第 ${chapter.order_index} 章` : "章节练习";
+});
+
+const todayAdviceText = computed(() => {
+  const item = primaryRecommendation.value;
+  if (item) return `建议优先复习「${item.chapter_title}」：${item.reason}。`;
+  if ((overview.value?.total_answers ?? 0) === 0) return "先完成一组章节练习，系统会据此生成复习建议。";
+  return "当前没有明显薄弱章节，可以做一次综合模拟保持题感。";
+});
+
+const recommendationTitle = computed(() => {
+  const item = primaryRecommendation.value;
+  return item ? `${item.chapter_title}专项训练` : "综合模拟训练";
+});
+
+const recommendationReason = computed(() => {
+  const item = primaryRecommendation.value;
+  return item ? item.reason : "最近数据较稳定，适合跨章节检验整体掌握情况。";
+});
+
+const recommendationAction = computed(() => primaryRecommendation.value?.action ?? "跨章节随机组题，检查复习盲区");
+const recommendedMinutes = computed(() => (questionCount.value >= 10 ? 15 : 8));
+
+const selectedChapter = computed(() => chapters.value.find((chapter) => chapter.id === selectedChapterId.value) ?? null);
+const selectedChapterStat = computed(() => selectedChapterId.value ? chapterStat(selectedChapterId.value) : undefined);
+
+const plannerTitle = computed(() => {
+  if (selectedSmartMode.value === "sprint") return "考前冲刺";
+  if (selectedSmartMode.value === "weak") return primaryRecommendation.value ? `${primaryRecommendation.value.chapter_title}薄弱专项` : "薄弱专项";
+  if (selectedSmartMode.value === "wrong") return "错题重刷";
+  if (selectedSmartMode.value === "mock") return "综合模拟";
+  return setupTitle.value;
+});
+
+const plannerDescription = computed(() => {
+  if (selectedSmartMode.value === "sprint") return "混合总复习题与薄弱章节，适合快速查漏补缺。";
+  if (selectedSmartMode.value === "weak") return primaryRecommendation.value?.reason ?? "当前没有明显薄弱章节，可以先做综合模拟。";
+  if (selectedSmartMode.value === "wrong") return `${overview.value?.wrong_question_count ?? 0} 道未掌握错题会优先进入本组练习。`;
+  if (selectedSmartMode.value === "mock") return "跨章节随机组题，按模拟练习节奏检查整体掌握情况。";
+  if (practiceMode.value === "final_review") return `跨章节随机抽题，当前题库共 ${totalQuestionCount.value} 道可练。`;
+  if (selectedChapter.value) return selectedChapter.value.description ?? `${selectedChapter.value.question_count} 道题，按章节建立复习基线。`;
+  return "选择一个章节或训练入口后开始练习。";
+});
+
+const plannerStats = computed(() => {
+  if (selectedSmartMode.value === "wrong") {
+    return [
+      { label: "错题", value: `${overview.value?.wrong_question_count ?? 0}` },
+      { label: "题量", value: `${questionCount.value}` },
+    ];
+  }
+  if (practiceMode.value === "final_review") {
+    return [
+      { label: "题库", value: `${totalQuestionCount.value}` },
+      { label: "正确率", value: percent(overview.value?.correct_rate ?? 0) },
+    ];
+  }
+  return [
+    { label: "已练", value: `${selectedChapterStat.value?.answered ?? 0}` },
+    { label: "正确率", value: percent(selectedChapterStat.value?.correct_rate ?? 0) },
+    { label: "掌握度", value: `${selectedChapterStat.value?.mastery_score ?? 0}分` },
+  ];
+});
+
+const plannerButtonLabel = computed(() => {
+  if (selectedSmartMode.value === "sprint") return "冲刺";
+  if (selectedSmartMode.value === "weak") return "专项";
+  if (selectedSmartMode.value === "wrong") return "错题";
+  if (selectedSmartMode.value === "mock") return "模拟";
+  if (practiceMode.value === "final_review") return "总复习";
+  return "练习";
+});
+
 const answerLocked = computed(() => Boolean(result.value) || isReviewMode.value);
 const answers = reactive<Record<number, string | string[]>>({});
 const unansweredQuestionIds = ref<Set<number>>(new Set());
@@ -577,16 +815,103 @@ function resetAnswerState() {
   Object.keys(answers).forEach((key) => delete answers[Number(key)]);
 }
 
+function isCompletionResponse(response: PracticeSession | AllQuestionsCompleted): response is AllQuestionsCompleted {
+  return "completed" in response && response.completed === true;
+}
+
 function selectChapter(chapterId: number) {
+  selectedSmartMode.value = null;
   selectedChapterId.value = chapterId;
   practiceMode.value = "chapter";
   emit("modeChange", "chapter");
 }
 
 function selectFinalReview() {
+  selectedSmartMode.value = null;
   practiceMode.value = "final_review";
   selectedChapterId.value = null;
   emit("modeChange", "final_review");
+}
+
+function selectSmartPractice(kind: SmartPracticeMode) {
+  selectedSmartMode.value = kind;
+  selectedQuestionType.value = "";
+  practiceSourceScope.value = "standard";
+
+  if (kind === "wrong") {
+    practiceMode.value = "wrong_questions";
+    selectedChapterId.value = null;
+    questionCount.value = Math.max(questionCount.value, 10);
+    emit("modeChange", "wrong_questions");
+    return;
+  }
+
+  if (kind === "weak") {
+    const item = primaryRecommendation.value;
+    if (item) {
+      selectedChapterId.value = item.chapter_id;
+      practiceMode.value = "chapter";
+      questionCount.value = Math.max(questionCount.value, 10);
+      emit("modeChange", "chapter");
+      return;
+    }
+  }
+
+  practiceMode.value = "final_review";
+  selectedChapterId.value = null;
+  questionCount.value = kind === "sprint" ? 20 : 15;
+  emit("modeChange", "final_review");
+}
+
+function chapterStat(chapterId: number) {
+  return chapterStatsById.value.get(chapterId);
+}
+
+function chapterStatusLabel(chapterId: number) {
+  const stat = chapterStat(chapterId);
+  if (!stat || stat.answered === 0) return "未练习";
+  if (stat.mastery_score >= 80) return "已掌握";
+  if (stat.mastery_score >= 50) return "待巩固";
+  return "薄弱";
+}
+
+function chapterStatusClass(chapterId: number) {
+  const stat = chapterStat(chapterId);
+  if (!stat || stat.answered === 0) return "status-new";
+  if (stat.mastery_score >= 80) return "status-mastered";
+  if (stat.mastery_score >= 50) return "status-review";
+  return "status-weak";
+}
+
+function applyChapterPractice(chapterId: number, count = questionCount.value, sourceScope: SourceScope = "standard") {
+  selectedSmartMode.value = null;
+  selectedChapterId.value = chapterId;
+  practiceMode.value = "chapter";
+  questionCount.value = count;
+  practiceSourceScope.value = sourceScope;
+  selectedQuestionType.value = "";
+  emit("modeChange", "chapter");
+}
+
+async function startRecommendedPractice() {
+  const item = primaryRecommendation.value;
+  if (item) {
+    applyChapterPractice(item.chapter_id, item.answered === 0 ? 5 : 10, "standard");
+  } else {
+    selectFinalReview();
+    questionCount.value = 12;
+    practiceSourceScope.value = "standard";
+  }
+  await startPractice();
+}
+
+async function startSelectedPractice() {
+  if (selectedSmartMode.value === "wrong") {
+    await startWrongPractice();
+    return;
+  }
+
+  await startPractice();
 }
 
 function multiAnswer(questionId: number) {
@@ -685,7 +1010,10 @@ function formatDate(value: string) {
 function historyTitle(item: PracticeHistoryItem) {
   if (item.mode === "final_review") return "总复习";
   if (item.mode === "wrong_questions") return "错题重练";
-  return item.chapter_title ? `第 ${item.chapter_id} 章：${item.chapter_title}` : "章节练习";
+  const chapter = chapters.value.find((row) => row.id === item.chapter_id);
+  return item.chapter_title
+    ? `第 ${chapter?.order_index ?? item.chapter_id} 章：${item.chapter_title}`
+    : "章节练习";
 }
 
 function answerableQuestions(questions: Question[]) {
@@ -712,6 +1040,15 @@ async function loadHistory() {
   historyItems.value = await api.practiceHistory();
 }
 
+async function loadStudySignals() {
+  const [statsResult, recommendationResult] = await Promise.allSettled([
+    api.chapterStats(),
+    api.recommendations(),
+  ]);
+  if (statsResult.status === "fulfilled") chapterStats.value = statsResult.value;
+  if (recommendationResult.status === "fulfilled") recommendations.value = recommendationResult.value;
+}
+
 async function deleteHistoryItem(sessionId: number) {
   await api.deletePractice(sessionId);
   historyItems.value = historyItems.value.filter((item) => item.id !== sessionId);
@@ -719,6 +1056,7 @@ async function deleteHistoryItem(sessionId: number) {
     session.value = null;
     resetAnswerState();
   }
+  await loadStudySignals();
   emit("refresh");
 }
 
@@ -737,7 +1075,7 @@ async function startPractice() {
     });
 
     // 检查是否返回了"所有题目已完成"的响应
-    if ("completed" in response && response.completed) {
+    if (isCompletionResponse(response)) {
       allQuestionsCompleted.value = {
         message: response.message,
         total_questions: response.total_questions,
@@ -782,6 +1120,7 @@ async function submitPractice() {
     }));
     result.value = await api.submitPractice(session.value.id, submitted);
     await loadHistory();
+    await loadStudySignals();
     emit("refresh");
 
     // 如果是AI新题模式，显示投票面板
@@ -808,11 +1147,22 @@ async function startWrongPractice() {
   error.value = "";
   resetAnswerState();
   try {
-    session.value = await api.createPractice({
+    const response = await api.createPractice({
       mode: "wrong_questions",
       question_count: questionCount.value || 10,
       source_scope: practiceSourceScope.value,
     });
+    if (isCompletionResponse(response)) {
+      allQuestionsCompleted.value = {
+        message: response.message,
+        total_questions: response.total_questions,
+        answered_questions: response.answered_questions,
+        suggestions: response.suggestions,
+      };
+      session.value = null;
+      return;
+    }
+    session.value = response;
     practiceMode.value = "wrong_questions";
     selectedChapterId.value = session.value.chapter_id;
     emit("modeChange", "wrong_questions");
@@ -895,6 +1245,7 @@ async function exitPractice() {
   session.value = null;
   resetAnswerState();
   await loadHistory();
+  await loadStudySignals();
   emit("refresh");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -957,12 +1308,398 @@ onMounted(async () => {
     aiEnabled.value = false;
   }
   await loadHistory();
+  await loadStudySignals();
 });
 
 defineExpose({ startWrongPractice, selectedChapterId });
 </script>
 
 <style scoped>
+.study-dashboard,
+.daily-recommendation,
+.smart-practice-entry {
+  margin-bottom: 14px;
+}
+
+.study-dashboard {
+  min-width: 0;
+}
+
+.study-overview-card,
+.daily-recommendation,
+.smart-entry-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 10px 28px rgb(36 48 47 / 6%);
+}
+
+.study-overview-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 0.95fr);
+  gap: 14px;
+  padding: 16px;
+}
+
+.today-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.today-status h3,
+.daily-recommendation h3 {
+  margin: 4px 0 8px;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.today-status p,
+.daily-recommendation p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.mastery-meter {
+  --mastery: 0%;
+  display: grid;
+  width: 96px;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  align-content: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--panel) 0 58%, transparent 59%),
+    conic-gradient(var(--teal) var(--mastery), #e4eadd 0);
+}
+
+.mastery-meter strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.mastery-meter span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.study-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: center;
+}
+
+.metric-pill {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fffef9;
+}
+
+.metric-pill svg {
+  color: var(--teal);
+}
+
+.metric-pill span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-pill strong {
+  font-size: 17px;
+  line-height: 1.1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.daily-recommendation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  background:
+    linear-gradient(135deg, rgb(240 201 106 / 18%), transparent 42%),
+    var(--panel);
+}
+
+.recommendation-copy {
+  min-width: 0;
+}
+
+.recommendation-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.recommendation-tags span {
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid #d7e1d5;
+  border-radius: 999px;
+  color: #41504c;
+  background: #f7f9f3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.recommendation-button {
+  flex: 0 0 auto;
+}
+
+.smart-practice-entry {
+  padding-top: 2px;
+}
+
+.smart-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.smart-entry-card {
+  display: grid;
+  min-height: 122px;
+  align-content: start;
+  gap: 9px;
+  padding: 14px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.smart-entry-card:hover {
+  border-color: var(--teal);
+  transform: translateY(-1px);
+}
+
+.smart-entry-card.selected {
+  border-color: var(--teal);
+  background: #f3faf7;
+  box-shadow: inset 4px 0 0 var(--teal), 0 10px 28px rgb(36 48 47 / 6%);
+}
+
+.smart-entry-card svg {
+  color: var(--teal);
+}
+
+.smart-entry-card strong {
+  font-size: 16px;
+}
+
+.smart-entry-card span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.compact-section-title {
+  margin-top: 4px;
+}
+
+.planner-card {
+  display: grid;
+  gap: 14px;
+}
+
+.planner-summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d7e1d5;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(45 124 111 / 8%), transparent 56%),
+    #fffef9;
+}
+
+.planner-summary h3 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.planner-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.planner-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.planner-stat-grid span {
+  display: grid;
+  gap: 4px;
+  min-height: 54px;
+  padding: 9px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f7f9f3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.planner-stat-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.chapter-card-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.chapter-card-head {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px !important;
+}
+
+.chapter-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px !important;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.chapter-progress {
+  display: grid !important;
+  grid-template-columns: minmax(80px, 1fr) auto;
+  gap: 10px !important;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.chapter-progress b {
+  color: var(--teal);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.chapter-mini-stats {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 8px !important;
+  margin-top: 8px;
+}
+
+.chapter-mini-stats span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-mastered {
+  color: #16734e !important;
+  background: #e8f5ed !important;
+}
+
+.status-review {
+  color: #8a6417 !important;
+  background: #fff3c7 !important;
+}
+
+.status-weak {
+  color: #9a2f2f !important;
+  background: #fff0ef !important;
+}
+
+.status-new {
+  color: #55615d !important;
+  background: #eef1ea !important;
+}
+
+.progress-fill.status-mastered {
+  background: #2f9c62;
+}
+
+.progress-fill.status-review {
+  background: #d59c2b;
+}
+
+.progress-fill.status-weak {
+  background: #c85852;
+}
+
+.progress-fill.status-new {
+  background: #a9b1a7;
+}
+
+@media (max-width: 1180px) {
+  .study-overview-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .study-metrics,
+  .smart-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .daily-recommendation {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recommendation-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .today-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .study-metrics,
+  .smart-entry-grid,
+  .planner-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chapter-progress {
+    grid-template-columns: 1fr;
+  }
+}
+
 .completion-notice {
   background: var(--panel);
   border: 1px solid var(--rule);

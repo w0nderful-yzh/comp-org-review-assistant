@@ -268,7 +268,7 @@ export const api = {
     question_types?: QuestionType[];
     source_scope?: SourceScope;
   }) =>
-    request<PracticeSession>("/api/practice-sessions", {
+    request<PracticeSession | AllQuestionsCompleted>("/api/practice-sessions", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

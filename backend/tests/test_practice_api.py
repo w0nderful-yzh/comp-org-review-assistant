@@ -306,6 +306,30 @@ def test_unsubmitted_practice_review_hides_answers_and_stats_ignore_it() -> None
         cleanup_test_data(chapter_id, user_id)
 
 
+def test_delete_practice_history_item() -> None:
+    chapter_id = 910
+    user_id = f"pytest-{uuid4()}"
+    cleanup_test_data(chapter_id, user_id)
+
+    try:
+        question_id = seed_test_question(chapter_id)
+        session_id = create_session(chapter_id, user_id)
+        submit_answer(session_id, question_id, user_id, "A")
+
+        delete_response = client.delete(f"/api/practice-sessions/{session_id}?user_id={user_id}")
+        assert delete_response.status_code == 200
+        assert delete_response.json() == {"deleted": True}
+
+        history_response = client.get(f"/api/practice-sessions?user_id={user_id}")
+        assert history_response.status_code == 200
+        assert history_response.json() == []
+
+        review_response = client.get(f"/api/practice-sessions/{session_id}/review?user_id={user_id}")
+        assert review_response.status_code == 404
+    finally:
+        cleanup_test_data(chapter_id, user_id)
+
+
 def test_question_group_practice_submits_child_answers() -> None:
     chapter_id = 908
     user_id = f"pytest-{uuid4()}"

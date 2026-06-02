@@ -1,5 +1,20 @@
 <template>
   <section class="practice-page" :class="{ running: Boolean(session) }">
+    <!-- AI题目生成加载提示 -->
+    <div v-if="loading && practiceSourceScope === 'ai_new' && !session" class="ai-loading-overlay">
+      <div class="ai-loading-content">
+        <div class="ai-loading-spinner">
+          <Sparkles :size="32" class="sparkle-icon" />
+        </div>
+        <h3>AI 正在生成题目...</h3>
+        <p>根据当前章节内容，智能生成练习题目</p>
+        <div class="ai-loading-progress">
+          <div class="progress-bar"></div>
+        </div>
+        <small>预计需要 5-15 秒，请耐心等待</small>
+      </div>
+    </div>
+
     <div v-if="!session" class="practice-setup">
       <section class="practice-setup-main">
         <div class="section-title">
@@ -34,6 +49,37 @@
             <ChevronRight :size="18" />
           </button>
         </div>
+
+        <!-- 所有题目完成提示 -->
+        <div v-if="allQuestionsCompleted" class="completion-notice">
+          <div class="completion-icon">🎉</div>
+          <h3>{{ allQuestionsCompleted.message }}</h3>
+          <p class="completion-stats">
+            已完成 {{ allQuestionsCompleted.answered_questions }} / {{ allQuestionsCompleted.total_questions }} 道题
+          </p>
+          <div class="completion-suggestions">
+            <h4>建议：</h4>
+            <ul>
+              <li v-for="(suggestion, index) in allQuestionsCompleted.suggestions" :key="index">
+                {{ suggestion }}
+              </li>
+            </ul>
+          </div>
+          <div class="completion-actions">
+            <button class="primary-button" @click="startWrongPractice">
+              <RotateCcw :size="16" />
+              <span>错题复盘</span>
+            </button>
+            <button class="secondary-button" @click="restartPractice">
+              <RefreshCw :size="16" />
+              <span>再刷一遍</span>
+            </button>
+            <button class="ai-button" @click="practiceSourceScope = 'ai_new'; startPractice()">
+              <Sparkles :size="16" />
+              <span>AI加练</span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <aside class="practice-setup-side">
@@ -64,85 +110,45 @@
                 <button :class="{ selected: practiceSourceScope === 'standard' }" @click="practiceSourceScope = 'standard'">
                   标准练习
                 </button>
-                <button :class="{ selected: practiceSourceScope === 'supplement' }" @click="practiceSourceScope = 'supplement'">
-                  专项补充
+                <button :class="{ selected: practiceSourceScope === 'ai_pool' }" @click="practiceSourceScope = 'ai_pool'">
+                  社区AI题库
+                </button>
+                <button :class="{ selected: practiceSourceScope === 'ai_new' }" @click="practiceSourceScope = 'ai_new'">
+                  AI新题
                 </button>
               </div>
             </div>
+            <div class="source-description">
+              <span v-if="practiceSourceScope === 'original_only'">只练习原始题目，不含AI生成题</span>
+              <span v-else-if="practiceSourceScope === 'standard'">混合练习原始题和已验证的AI题</span>
+              <span v-else-if="practiceSourceScope === 'ai_pool'">练习社区共享的优质AI题库</span>
+              <span v-else-if="practiceSourceScope === 'ai_new'">实时生成全新AI题目进行练习</span>
+            </div>
             <button class="primary-button" :disabled="loading" @click="startPractice">
-              <Play :size="18" />
-              <span>开始</span>
+              <template v-if="loading && practiceSourceScope === 'ai_new'">
+                <Sparkles :size="18" class="generating-icon" />
+                <span>生成中...</span>
+              </template>
+              <template v-else>
+                <Play :size="18" />
+                <span>开始</span>
+              </template>
             </button>
           </div>
         </section>
 
         <section class="practice-panel setup-card">
-          <div v-if="aiEnabled" class="ai-generate-section compact-ai">
-            <button class="ai-generate-toggle" @click="showAiPanel = !showAiPanel">
+          <div v-if="aiEnabled" class="ai-info-section">
+            <div class="ai-info-header">
               <div class="ai-toggle-icon">
                 <Sparkles :size="16" />
               </div>
               <div class="ai-toggle-text">
-                <span>AI 补充出题</span>
-                <small>{{ aiChapterLabel }}</small>
+                <span>AI 出题已启用</span>
+                <small>今日剩余 {{ aiDailyRemaining }} 道</small>
               </div>
-              <ChevronRight :size="14" class="ai-toggle-arrow" :class="{ rotated: showAiPanel }" />
-            </button>
-            <div v-if="showAiPanel" class="ai-generate-panel">
-              <div class="ai-panel-context">
-                <span class="ai-context-label">生成范围</span>
-                <strong>{{ aiChapterLabel }}</strong>
-              </div>
-              <div class="ai-form-row">
-                <div class="ai-form-field">
-                  <label>题型</label>
-                  <div class="ai-type-chips">
-                    <button :class="{ active: aiForm.type === '' }" @click="aiForm.type = ''">随机</button>
-                    <button :class="{ active: aiForm.type === 'single_choice' }" @click="aiForm.type = 'single_choice'">单选</button>
-                    <button :class="{ active: aiForm.type === 'multiple_choice' }" @click="aiForm.type = 'multiple_choice'">多选</button>
-                    <button :class="{ active: aiForm.type === 'true_false' }" @click="aiForm.type = 'true_false'">判断</button>
-                    <button :class="{ active: aiForm.type === 'fill_blank' }" @click="aiForm.type = 'fill_blank'">填空</button>
-                    <button :class="{ active: aiForm.type === 'calculation' }" @click="aiForm.type = 'calculation'">计算</button>
-                  </div>
-                </div>
-                <div class="ai-form-field ai-form-compact">
-                  <label>难度</label>
-                  <select v-model="aiForm.difficulty">
-                    <option value="easy">基础</option>
-                    <option value="medium">中等</option>
-                    <option value="hard">提高</option>
-                  </select>
-                </div>
-                <div class="ai-form-field ai-form-compact">
-                  <label>数量</label>
-                  <div class="ai-count-stepper">
-                    <button @click="aiForm.count = Math.max(1, aiForm.count - 1)">−</button>
-                    <span>{{ aiForm.count }}</span>
-                    <button @click="aiForm.count = Math.min(5, aiForm.count + 1)">+</button>
-                  </div>
-                </div>
-              </div>
-              <div class="ai-form-field">
-                <label>关注点 <span class="ai-optional">可选</span></label>
-                <input
-                  v-model="aiForm.focus"
-                  class="ai-focus-input"
-                  placeholder="例如 Cache 命中率、流水线冒险、补码运算"
-                />
-              </div>
-              <div class="ai-actions">
-                <button class="ai-generate-btn" :disabled="aiLoading" @click="generateAiQuestions">
-                  <Sparkles :size="15" />
-                  <span>{{ aiLoading ? "正在生成..." : "生成补充题" }}</span>
-                </button>
-                <span class="ai-remaining" v-if="aiDailyRemaining >= 0">
-                  今日剩余 {{ aiDailyRemaining }} 道
-                </span>
-              </div>
-              <p v-if="aiMessage" class="ai-message" :class="{ error: aiMessage.includes('失败') || aiMessage.includes('错误') }">
-                {{ aiMessage }}
-              </p>
             </div>
+            <p class="ai-info-hint">选择"AI新题"模式即可实时生成AI题目</p>
           </div>
           <div v-else class="ai-disabled-notice">
             <Sparkles :size="14" />
@@ -161,14 +167,17 @@
             </button>
           </div>
           <div v-if="historyItems.length" class="history-list">
-            <button v-for="item in historyItems" :key="item.id" class="history-row" @click="openHistory(item.id)">
+            <div v-for="item in historyItems" :key="item.id" class="history-row" role="button" tabindex="0" @click="openHistory(item.id)" @keyup.enter="openHistory(item.id)">
               <div>
                 <strong>{{ historyTitle(item) }}</strong>
                 <span>{{ formatDate(item.started_at) }} · {{ item.question_count }} 题</span>
               </div>
               <b>{{ item.submitted_at ? `${scoreText(item.score)} 分` : "未完成" }}</b>
               <Eye :size="16" />
-            </button>
+              <button class="history-delete" title="删除记录" @click.stop="deleteHistoryItem(item.id)">
+                <Trash2 :size="15" />
+              </button>
+            </div>
           </div>
           <div v-else class="compact-empty">
             暂无练习记录。
@@ -412,6 +421,46 @@
         </button>
       </div>
     </div>
+
+    <!-- AI新题投票面板 -->
+    <div v-if="showVotingPanel && votingQuestions.length > 0" class="voting-overlay">
+      <div class="voting-panel">
+        <div class="voting-header">
+          <h3>🗳️ 为AI题目投票</h3>
+          <p>点赞的题目将加入社区AI题库，帮助更多同学练习</p>
+        </div>
+        <div class="voting-list">
+          <div v-for="(q, index) in votingQuestions" :key="q.id" class="voting-item">
+            <div class="voting-index">{{ index + 1 }}</div>
+            <div class="voting-stem">{{ q.stem.length > 60 ? q.stem.slice(0, 60) + '...' : q.stem }}</div>
+            <div class="voting-buttons">
+              <button
+                class="vote-btn vote-like"
+                :class="{ active: q.voted === 'like' }"
+                @click="q.voted = q.voted === 'like' ? null : 'like'"
+              >
+                <ThumbsUp :size="16" />
+                <span>赞</span>
+              </button>
+              <button
+                class="vote-btn vote-dislike"
+                :class="{ active: q.voted === 'dislike' }"
+                @click="q.voted = q.voted === 'dislike' ? null : 'dislike'"
+              >
+                <ThumbsDown :size="16" />
+                <span>踩</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="voting-actions">
+          <button class="voting-submit" @click="submitVotes">
+            提交投票 ({{ votingQuestions.filter(q => q.voted).length }}/{{ votingQuestions.length }})
+          </button>
+          <button class="voting-skip" @click="skipVoting">跳过</button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -428,6 +477,7 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   X,
 } from "@lucide/vue";
 import { api, type AnswerResult, type AnswerReviewResult, type FeedbackType, type FlagReason, type PracticeHistoryItem, type PracticeResult, type PracticeSession, type Question, type QuestionType, type SourceScope } from "../api/client";
@@ -461,6 +511,15 @@ const aiLoading = ref(false);
 const aiMessage = ref("");
 const flagPanelQuestionId = ref<number | null>(null);
 const historyItems = ref<PracticeHistoryItem[]>([]);
+const allQuestionsCompleted = ref<{
+  message: string;
+  total_questions: number;
+  answered_questions: number;
+  suggestions: string[];
+} | null>(null);
+
+const showVotingPanel = ref(false);
+const votingQuestions = ref<Array<{ id: number; stem: string; voted: 'like' | 'dislike' | null }>>([]);
 
 const aiForm = reactive({
   type: "" as QuestionType | "",
@@ -653,19 +712,43 @@ async function loadHistory() {
   historyItems.value = await api.practiceHistory();
 }
 
+async function deleteHistoryItem(sessionId: number) {
+  await api.deletePractice(sessionId);
+  historyItems.value = historyItems.value.filter((item) => item.id !== sessionId);
+  if (session.value?.id === sessionId) {
+    session.value = null;
+    resetAnswerState();
+  }
+  emit("refresh");
+}
+
 async function startPractice() {
   loading.value = true;
   error.value = "";
+  allQuestionsCompleted.value = null;
   resetAnswerState();
   try {
-    session.value = await api.createPractice({
+    const response = await api.createPractice({
       mode: practiceMode.value,
       chapter_id: practiceMode.value === "chapter" ? selectedChapterId.value : null,
       question_count: questionCount.value,
       question_types: selectedQuestionType.value ? [selectedQuestionType.value] : undefined,
       source_scope: practiceSourceScope.value,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // 检查是否返回了"所有题目已完成"的响应
+    if ("completed" in response && response.completed) {
+      allQuestionsCompleted.value = {
+        message: response.message,
+        total_questions: response.total_questions,
+        answered_questions: response.answered_questions,
+        suggestions: response.suggestions,
+      };
+      session.value = null;
+    } else {
+      session.value = response as PracticeSession;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : "创建练习失败";
     session.value = null;
@@ -700,6 +783,19 @@ async function submitPractice() {
     result.value = await api.submitPractice(session.value.id, submitted);
     await loadHistory();
     emit("refresh");
+
+    // 如果是AI新题模式，显示投票面板
+    if (practiceSourceScope.value === "ai_new" && session.value) {
+      const aiQuestions = session.value.questions.filter(q => q.source_type === "ai");
+      if (aiQuestions.length > 0) {
+        votingQuestions.value = aiQuestions.map(q => ({
+          id: q.id,
+          stem: q.stem,
+          voted: null,
+        }));
+        showVotingPanel.value = true;
+      }
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : "提交失败";
   } finally {
@@ -727,6 +823,29 @@ async function startWrongPractice() {
   } finally {
     loading.value = false;
   }
+}
+
+function restartPractice() {
+  allQuestionsCompleted.value = null;
+  startPractice();
+}
+
+async function submitVotes() {
+  const likedQuestions = votingQuestions.value.filter(q => q.voted === 'like');
+  for (const q of likedQuestions) {
+    try {
+      await api.submitFeedback(q.id, 'helpful');
+    } catch {
+      // 忽略单个投票失败
+    }
+  }
+  showVotingPanel.value = false;
+  votingQuestions.value = [];
+}
+
+function skipVoting() {
+  showVotingPanel.value = false;
+  votingQuestions.value = [];
 }
 
 async function openHistory(sessionId: number) {
@@ -791,7 +910,7 @@ async function generateAiQuestions() {
       count: aiForm.count,
       focus: aiForm.focus.trim() || null,
     });
-    aiMessage.value = `已生成 ${result.created} 道补充题，切换到"专项补充"模式即可练习`;
+    aiMessage.value = `已生成 ${result.created} 道AI题，切换到"AI新题"模式即可练习`;
     aiDailyRemaining.value = Math.max(0, aiDailyRemaining.value - result.created);
     emit("refresh");
   } catch (err) {
@@ -842,3 +961,367 @@ onMounted(async () => {
 
 defineExpose({ startWrongPractice, selectedChapterId });
 </script>
+
+<style scoped>
+.completion-notice {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.completion-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.completion-notice h3 {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+}
+
+.completion-stats {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.completion-suggestions {
+  text-align: left;
+  background: rgba(45, 124, 111, 0.05);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.completion-suggestions h4 {
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+  color: var(--teal);
+}
+
+.completion-suggestions ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.completion-suggestions li {
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+
+.completion-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.completion-actions button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary-button {
+  background: var(--teal);
+  color: white;
+  border: none;
+}
+
+.primary-button:hover {
+  background: #236b5f;
+}
+
+.secondary-button {
+  background: transparent;
+  color: var(--teal);
+  border: 1px solid var(--teal);
+}
+
+.secondary-button:hover {
+  background: rgba(45, 124, 111, 0.1);
+}
+
+.ai-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.ai-button:hover {
+  opacity: 0.9;
+}
+
+.source-description {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+  min-height: 1rem;
+}
+
+/* AI信息区域 */
+.ai-info-section {
+  padding: 0.75rem;
+}
+
+.ai-info-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ai-info-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+/* 投票面板 */
+.voting-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.voting-panel {
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.voting-header {
+  margin-bottom: 1rem;
+}
+
+.voting-header h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.voting-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.voting-list {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.voting-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+}
+
+.voting-index {
+  font-weight: 700;
+  color: var(--teal);
+  font-size: 0.9rem;
+  min-width: 1.5rem;
+}
+
+.voting-stem {
+  flex: 1;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.voting-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vote-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  border: 1px solid var(--rule);
+}
+
+.vote-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.vote-btn.vote-like.active {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.vote-btn.vote-dislike.active {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.voting-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.voting-submit {
+  padding: 0.6rem 1.5rem;
+  background: var(--teal);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.voting-submit:hover {
+  background: #236b5f;
+}
+
+.voting-skip {
+  padding: 0.6rem 1.5rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.voting-skip:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* AI加载提示 */
+.ai-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ai-loading-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.ai-loading-spinner {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(102, 126, 234, 0); }
+}
+
+.sparkle-icon {
+  color: white;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-10deg) scale(1.1); }
+  75% { transform: rotate(10deg) scale(1.1); }
+}
+
+.ai-loading-content h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.ai-loading-content p {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ai-loading-progress {
+  width: 200px;
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  margin: 0 auto 1rem;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+  background-size: 200% 100%;
+  border-radius: 2px;
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ai-loading-content small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* 生成中按钮动画 */
+.generating-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

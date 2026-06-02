@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: comp-org-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-comp_org_review}
+      POSTGRES_USER: ${POSTGRES_USER:-comp_org}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: comp-org-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-comp_org}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-comp_org_review}
+      SECRET_KEY: ${SECRET_KEY}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+      CORS_ORIGINS: '["http://localhost","http://localhost:80","https://${DOMAIN:-localhost}"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: comp-org-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

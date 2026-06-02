@@ -9,4 +9,15 @@ export default defineConfig({
       "/api": "http://localhost:8000",
     },
   },
+  build: {
+    // 生产构建优化
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 });

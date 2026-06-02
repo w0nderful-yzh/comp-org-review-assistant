@@ -47,6 +47,14 @@ export type PracticeSession = {
   questions: Question[];
 };
 
+export type AllQuestionsCompleted = {
+  completed: true;
+  message: string;
+  total_questions: number;
+  answered_questions: number;
+  suggestions: string[];
+};
+
 export type AnswerResult = {
   question_id: number;
   is_correct: boolean;
@@ -116,7 +124,11 @@ export type ChapterStatistics = {
   chapter_id: number;
   chapter_title: string;
   answered: number;
+  total_questions: number;
   correct_rate: number;
+  coverage: number;
+  mastered_rate: number;
+  mastery_score: number;
 };
 
 export type QuestionTypeStatistics = {
@@ -159,7 +171,7 @@ export type KnowledgeSearch = {
   total: number;
 };
 
-export type SourceScope = "original_only" | "standard" | "supplement";
+export type SourceScope = "original_only" | "standard" | "ai_new" | "ai_pool";
 
 export type AiQuestionDraftResult = {
   created: number;
@@ -185,33 +197,31 @@ export type FeedbackType = "helpful" | "not_helpful" | "flag";
 export type FlagReason = "answer_error" | "unclear_stem" | "ambiguous_options" | "out_of_scope" | "duplicate" | "unclear_explanation";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
-const USER_ID_KEY = "comp-org-review-user-id";
+const TOKEN_KEY = "comp-org-review-token";
 
-export function getCurrentUserId() {
-  if (typeof localStorage === "undefined") return "demo";
-  const existing = localStorage.getItem(USER_ID_KEY);
-  if (existing) return existing;
-  const generated =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? `anon-${crypto.randomUUID()}`
-      : `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  localStorage.setItem(USER_ID_KEY, generated);
-  return generated;
-}
-
-function userQuery() {
-  return `user_id=${encodeURIComponent(getCurrentUserId())}`;
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string>),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
     ...init,
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem("comp-org-review-user");
+      window.location.reload();
+    }
     const detail = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(detail.detail ?? response.statusText);
   }
@@ -220,7 +230,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   chapters: () => request<Chapter[]>("/api/chapters"),
-  aiStatus: () => request<AiStatus>(`/api/ai-status?${userQuery()}`),
+  aiStatus: () => request<AiStatus>("/api/ai-status"),
   knowledgePoints: (chapterId: number) => request<KnowledgePoint[]>(`/api/chapters/${chapterId}/knowledge-points`),
   knowledgeChunks: (chapterId: number, limit = 30) =>
     request<KnowledgeChunk[]>(`/api/chapters/${chapterId}/knowledge-chunks?limit=${limit}`),
@@ -240,15 +250,15 @@ export const api = {
   }) =>
     request<AiQuestionDraftResult>("/api/ai-question-drafts", {
       method: "POST",
-      body: JSON.stringify({ ...payload, user_id: getCurrentUserId() }),
+      body: JSON.stringify(payload),
     }),
   submitFeedback: (questionId: number, feedbackType: FeedbackType, reason?: FlagReason) =>
-    request<QuestionFeedbackResult>(`/api/questions/${questionId}/feedback?${userQuery()}`, {
+    request<QuestionFeedbackResult>(`/api/questions/${questionId}/feedback`, {
       method: "POST",
       body: JSON.stringify({ feedback_type: feedbackType, reason }),
     }),
   deleteFeedback: (questionId: number) =>
-    request<{ deleted: boolean }>(`/api/questions/${questionId}/feedback?${userQuery()}`, {
+    request<{ deleted: boolean }>(`/api/questions/${questionId}/feedback`, {
       method: "DELETE",
     }),
   createPractice: (payload: {
@@ -257,26 +267,29 @@ export const api = {
     question_count: number;
     question_types?: QuestionType[];
     source_scope?: SourceScope;
-    user_id?: string;
   }) =>
     request<PracticeSession>("/api/practice-sessions", {
       method: "POST",
-      body: JSON.stringify({ ...payload, user_id: payload.user_id ?? getCurrentUserId() }),
+      body: JSON.stringify(payload),
     }),
   submitPractice: (sessionId: number, answers: Array<{ question_id: number; user_answer: unknown }>) =>
     request<PracticeResult>(`/api/practice-sessions/${sessionId}/submit`, {
       method: "POST",
-      body: JSON.stringify({ user_id: getCurrentUserId(), answers }),
+      body: JSON.stringify({ answers }),
     }),
-  practiceHistory: () => request<PracticeHistoryItem[]>(`/api/practice-sessions?${userQuery()}`),
-  reviewPractice: (sessionId: number) => request<PracticeReview>(`/api/practice-sessions/${sessionId}/review?${userQuery()}`),
-  wrongQuestions: () => request<WrongQuestion[]>(`/api/wrong-questions?${userQuery()}`),
+  practiceHistory: () => request<PracticeHistoryItem[]>("/api/practice-sessions"),
+  reviewPractice: (sessionId: number) => request<PracticeReview>(`/api/practice-sessions/${sessionId}/review`),
+  deletePractice: (sessionId: number) =>
+    request<{ deleted: boolean }>(`/api/practice-sessions/${sessionId}`, {
+      method: "DELETE",
+    }),
+  wrongQuestions: () => request<WrongQuestion[]>("/api/wrong-questions"),
   markMastered: (questionId: number) =>
-    request<{ mastered: boolean }>(`/api/wrong-questions/${questionId}/mastered?${userQuery()}`, {
+    request<{ mastered: boolean }>(`/api/wrong-questions/${questionId}/mastered`, {
       method: "POST",
     }),
-  overview: () => request<StatisticsOverview>(`/api/statistics/overview?${userQuery()}`),
-  chapterStats: () => request<ChapterStatistics[]>(`/api/statistics/chapters?${userQuery()}`),
-  questionTypeStats: () => request<QuestionTypeStatistics[]>(`/api/statistics/question-types?${userQuery()}`),
-  recommendations: () => request<StudyRecommendation[]>(`/api/statistics/recommendations?${userQuery()}`),
+  overview: () => request<StatisticsOverview>("/api/statistics/overview"),
+  chapterStats: () => request<ChapterStatistics[]>("/api/statistics/chapters"),
+  questionTypeStats: () => request<QuestionTypeStatistics[]>("/api/statistics/question-types"),
+  recommendations: () => request<StudyRecommendation[]>("/api/statistics/recommendations"),
 };

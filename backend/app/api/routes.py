@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import random
 from datetime import datetime, timezone
+from typing import Union
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, func, or_, select
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, QuestionFeedback, WrongQuestion
+from app.core.limiter import limiter
+from app.core.security import create_access_token, get_password_hash, verify_password
+from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, QuestionFeedback, User, WrongQuestion
 from app.schemas.api import (
     AiQuestionDraftCreate,
     AiQuestionDraftOut,
     AiStatusOut,
+    AllQuestionsCompletedOut,
     AnswerReviewResult,
     AnswerResult,
     ChapterOut,
@@ -34,13 +39,20 @@ from app.schemas.api import (
     QuestionReviewOut,
     StatisticsOverview,
     StudyRecommendation,
+    TokenOut,
+    UserLogin,
+    UserOut,
+    UserRegister,
     WrongQuestionOut,
 )
+from app.core.logging import get_logger
 from app.services.ai_generation import AiGenerationError, generate_question_drafts
 from app.services.grading import grade_answer, public_answer
 
+logger = get_logger(__name__)
+
 UNHELPFUL_ARCHIVE_THRESHOLD = 3
-DAILY_AI_LIMIT = 30
+DAILY_AI_LIMIT = 50
 
 FLAG_SCORE_MAP = {
     "answer_error": (-5, 1),     # (quality_delta, error_count_delta)
@@ -60,6 +72,49 @@ AI_STATUS_LABELS = {
 }
 
 router = APIRouter(prefix="/api")
+
+
+# ========== 认证路由 ==========
+
+
+@router.post("/auth/register", response_model=TokenOut)
+def register(payload: UserRegister, db: Session = Depends(get_db)) -> TokenOut:
+    existing = db.scalar(select(User).where(User.student_id == payload.student_id))
+    if existing:
+        logger.warning(f"注册失败: 学号 {payload.student_id} 已存在")
+        raise HTTPException(status_code=400, detail="该学号已注册")
+    user = User(
+        student_id=payload.student_id,
+        password_hash=get_password_hash(payload.password),
+        nickname=payload.nickname,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(data={"sub": str(user.id)})
+    logger.info(f"用户注册成功: {payload.student_id}")
+    return TokenOut(access_token=token)
+
+
+@router.post("/auth/login", response_model=TokenOut)
+def login(payload: UserLogin, db: Session = Depends(get_db)) -> TokenOut:
+    user = db.scalar(select(User).where(User.student_id == payload.student_id))
+    if not user or not verify_password(payload.password, user.password_hash):
+        logger.warning(f"登录失败: 学号 {payload.student_id}")
+        raise HTTPException(status_code=401, detail="学号或密码错误")
+    token = create_access_token(data={"sub": str(user.id)})
+    logger.info(f"用户登录成功: {payload.student_id}")
+    return TokenOut(access_token=token)
+
+
+@router.get("/auth/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)) -> UserOut:
+    return UserOut(
+        id=current_user.id,
+        student_id=current_user.student_id,
+        nickname=current_user.nickname,
+        created_at=current_user.created_at,
+    )
 
 
 def question_source_type(question: Question) -> str:
@@ -146,7 +201,7 @@ def knowledge_chunk_out(chunk: KnowledgeChunk) -> KnowledgeChunkOut:
     )
 
 
-def load_feedback_map(db: Session, question_ids: list[int], user_id: str = "demo") -> dict[int, dict]:
+def load_feedback_map(db: Session, question_ids: list[int], user_id: str) -> dict[int, dict]:
     if not question_ids:
         return {}
     counts = dict(
@@ -338,11 +393,14 @@ def health() -> dict[str, str]:
 
 
 @router.get("/ai-status", response_model=AiStatusOut)
-def ai_status(user_id: str = "demo", db: Session = Depends(get_db)) -> AiStatusOut:
+def ai_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AiStatusOut:
     settings = get_settings()
     if not settings.ai_enabled or not settings.ai_api_key:
         return AiStatusOut(enabled=False, daily_remaining=0)
-    used = get_daily_ai_count(db, user_id)
+    used = get_daily_ai_count(db, str(current_user.id))
     return AiStatusOut(enabled=True, daily_remaining=max(0, DAILY_AI_LIMIT - used))
 
 
@@ -463,7 +521,7 @@ def search_knowledge(
 def list_questions(
     chapter_id: int | None = None,
     question_type: str | None = None,
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[QuestionReviewOut]:
     conditions = [Question.archived.is_(False), Question.parent_question_id.is_(None)]
@@ -472,7 +530,7 @@ def list_questions(
     if question_type:
         conditions.append(Question.type == question_type)
     questions = db.scalars(select(Question).where(*conditions).order_by(Question.id)).all()
-    feedback_map = load_feedback_map(db, collect_question_tree_ids(db, questions), user_id)
+    feedback_map = load_feedback_map(db, collect_question_tree_ids(db, questions), str(current_user.id))
     return [question_tree_out(db, q, feedback_map, review=True) for q in questions]
 
 
@@ -480,9 +538,10 @@ def list_questions(
 def submit_feedback(
     question_id: int,
     payload: QuestionFeedbackCreate,
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> QuestionFeedbackOut:
+    user_id = str(current_user.id)
     question = db.get(Question, question_id)
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -559,12 +618,12 @@ def submit_feedback(
 @router.delete("/questions/{question_id}/feedback")
 def delete_feedback(
     question_id: int,
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, bool]:
     existing = db.scalar(
         select(QuestionFeedback).where(
-            QuestionFeedback.user_id == user_id,
+            QuestionFeedback.user_id == str(current_user.id),
             QuestionFeedback.question_id == question_id,
         )
     )
@@ -578,13 +637,14 @@ def delete_feedback(
 @router.post("/ai-question-drafts", response_model=AiQuestionDraftOut)
 def create_ai_question_drafts(
     payload: AiQuestionDraftCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AiQuestionDraftOut:
     settings = get_settings()
     if not settings.ai_enabled or not settings.ai_api_key:
         raise HTTPException(status_code=503, detail="AI service is not configured")
 
-    used = get_daily_ai_count(db, payload.user_id)
+    used = get_daily_ai_count(db, str(current_user.id))
     if used >= DAILY_AI_LIMIT:
         raise HTTPException(status_code=429, detail=f"Daily AI generation limit reached ({DAILY_AI_LIMIT}/day)")
 
@@ -658,8 +718,13 @@ def create_ai_question_drafts(
     return AiQuestionDraftOut(created=len(question_ids), question_ids=question_ids)
 
 
-@router.post("/practice-sessions", response_model=PracticeOut)
-def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_db)) -> PracticeOut:
+@router.post("/practice-sessions", response_model=Union[PracticeOut, AllQuestionsCompletedOut])
+def create_practice_session(
+    payload: PracticeCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Union[PracticeOut, AllQuestionsCompletedOut]:
+    user_id = str(current_user.id)
     base_filter = [
         Question.archived.is_(False),
         or_(Question.type != "short_answer", Question.parent_question_id.isnot(None)),
@@ -676,12 +741,16 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
 
     if payload.source_scope == "original_only":
         filters = base_filter + [Question.is_ai_generated.is_(False)]
-    elif payload.source_scope == "supplement":
-        ai_filter = and_(
+    elif payload.source_scope == "ai_new":
+        # AI新题模式：只使用新生成的AI题
+        pass
+    elif payload.source_scope == "ai_pool":
+        # 社区AI题库模式：只显示已公开的AI题（candidate/community_approved/verified）
+        public_ai = and_(
             Question.is_ai_generated.is_(True),
-            Question.ai_status.in_(["temporary", "candidate", "community_approved", "verified"]),
+            Question.ai_status.in_(["candidate", "community_approved", "verified"]),
         )
-        filters = base_filter + [or_(Question.is_ai_generated.is_(False), ai_filter)]
+        filters = base_filter + [public_ai]
     else:
         verified_ai = and_(
             Question.is_ai_generated.is_(True),
@@ -691,12 +760,89 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
 
     if payload.mode == "wrong_questions":
         wrong_ids = select(WrongQuestion.question_id).where(
-            WrongQuestion.user_id == payload.user_id,
+            WrongQuestion.user_id == user_id,
             WrongQuestion.mastered.is_(False),
         )
         filters.append(Question.id.in_(wrong_ids))
 
-    if payload.source_scope == "standard" and payload.mode != "wrong_questions":
+    # AI新题模式：只生成新的AI题
+    if payload.source_scope == "ai_new" and payload.mode != "wrong_questions":
+        questions = []
+        settings = get_settings()
+        if not settings.ai_enabled or not settings.ai_api_key:
+            raise HTTPException(status_code=503, detail="AI service is not configured")
+
+        # 检查每日限额
+        used = get_daily_ai_count(db, user_id)
+        if used >= DAILY_AI_LIMIT:
+            raise HTTPException(status_code=429, detail=f"Daily AI generation limit reached ({DAILY_AI_LIMIT}/day)")
+
+        actual_count = min(payload.question_count, DAILY_AI_LIMIT - used, 5)
+
+        # 选择章节
+        target_chapter_id = payload.chapter_id
+        if target_chapter_id is None:
+            target_chapter_id = db.scalar(
+                select(Chapter.id)
+                .outerjoin(Question, Question.chapter_id == Chapter.id)
+                .group_by(Chapter.id)
+                .order_by(func.count(Question.id))
+                .limit(1)
+            )
+
+        if not target_chapter_id:
+            raise HTTPException(status_code=404, detail="No chapters available")
+
+        chapter = db.get(Chapter, target_chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+
+        chunks = db.scalars(
+            select(KnowledgeChunk)
+            .where(KnowledgeChunk.chapter_id == target_chapter_id)
+            .order_by(KnowledgeChunk.chunk_id)
+            .limit(12)
+        ).all()
+
+        if not chunks:
+            raise HTTPException(status_code=404, detail="No knowledge chunks available for this chapter")
+
+        draft_payload = AiQuestionDraftCreate(
+            chapter_id=target_chapter_id,
+            count=actual_count,
+        )
+
+        try:
+            drafts = generate_question_drafts(draft_payload, chapter, chunks, settings)
+            for draft in drafts[:actual_count]:
+                question = Question(
+                    chapter_id=draft.chapter_id,
+                    knowledge_point_id=None,
+                    parent_question_id=None,
+                    type=draft.type,
+                    difficulty=draft.difficulty,
+                    stem=draft.stem,
+                    options_json=draft.options_json,
+                    answer_json=draft.answer_json,
+                    rubric_json=draft.rubric_json,
+                    explanation=draft.explanation,
+                    source_context=draft.source_context,
+                    source_assignment="AI新题练习",
+                    is_ai_generated=True,
+                    is_reviewed=True,
+                    ai_status="temporary",
+                    quality_score=0,
+                )
+                db.add(question)
+                db.flush()
+                questions.append(question)
+        except AiGenerationError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+
+        if not questions:
+            raise HTTPException(status_code=404, detail="Failed to generate AI questions")
+
+    elif payload.source_scope == "standard" and payload.mode != "wrong_questions":
         ai_available = db.scalar(
             select(func.count()).where(and_(*filters, Question.is_ai_generated.is_(True)))
         ) or 0
@@ -707,7 +853,7 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
             db,
             filters + [Question.is_ai_generated.is_(False)],
             original_count_needed,
-            payload.user_id,
+            user_id,
         )
 
         # If original questions are scarce, let reviewed AI questions fill the gap.
@@ -718,16 +864,50 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
                 db,
                 filters + [Question.is_ai_generated.is_(True)],
                 ai_count_needed + shortfall,
-                payload.user_id,
+                user_id,
             )
 
         questions = list(original_questions) + list(ai_questions)
         if not questions:
-            questions = select_adaptive_questions(db, filters, payload.question_count, payload.user_id)
+            questions = select_adaptive_questions(db, filters, payload.question_count, user_id)
+
+        # 检查是否所有题目都已完成
+        if not questions and payload.source_scope in ["original_only", "standard"]:
+            total_available = db.scalar(
+                select(func.count()).where(and_(*filters))
+            ) or 0
+            if total_available > 0:
+                return AllQuestionsCompletedOut(
+                    completed=True,
+                    message="该章节/模式下的题目已全部完成！",
+                    total_questions=total_available,
+                    answered_questions=total_available,
+                    suggestions=[
+                        "错题复盘：回顾并重做错题",
+                        "再刷一遍：重新练习所有题目",
+                        "AI加练：生成新的AI题目进行练习",
+                    ],
+                )
     else:
-        questions = select_adaptive_questions(db, filters, payload.question_count, payload.user_id)
+        questions = select_adaptive_questions(db, filters, payload.question_count, user_id)
 
     if not questions:
+        # 检查是否所有题目都已完成
+        total_available = db.scalar(
+            select(func.count()).where(and_(*filters))
+        ) or 0
+        if total_available > 0 and payload.source_scope in ["original_only", "standard"]:
+            return AllQuestionsCompletedOut(
+                completed=True,
+                message="该章节/模式下的题目已全部完成！",
+                total_questions=total_available,
+                answered_questions=total_available,
+                suggestions=[
+                    "错题复盘：回顾并重做错题",
+                    "再刷一遍：重新练习所有题目",
+                    "AI加练：生成新的AI题目进行练习",
+                ],
+            )
         raise HTTPException(status_code=404, detail="No questions available for this practice")
 
     # Sort by type: 选择 → 判断 → 填空 → 其他
@@ -735,7 +915,7 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
     questions.sort(key=lambda q: TYPE_ORDER.get(q.type, 4))
 
     session = PracticeSession(
-        user_id=payload.user_id,
+        user_id=user_id,
         mode=payload.mode,
         chapter_id=payload.chapter_id if payload.mode == "chapter" else None,
         question_count=len(questions),
@@ -748,7 +928,7 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
     db.commit()
     db.refresh(session)
 
-    feedback_map = load_feedback_map(db, collect_question_tree_ids(db, questions), payload.user_id)
+    feedback_map = load_feedback_map(db, collect_question_tree_ids(db, questions), user_id)
     return PracticeOut(
         id=session.id,
         mode=session.mode,
@@ -763,10 +943,11 @@ def create_practice_session(payload: PracticeCreate, db: Session = Depends(get_d
 
 @router.get("/practice-sessions", response_model=list[PracticeHistoryItem])
 def list_practice_sessions(
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     limit: int = 20,
     db: Session = Depends(get_db),
 ) -> list[PracticeHistoryItem]:
+    user_id = str(current_user.id)
     limit = min(max(limit, 1), 100)
     sessions = db.scalars(
         select(PracticeSession)
@@ -795,9 +976,10 @@ def list_practice_sessions(
 @router.get("/practice-sessions/{session_id}/review", response_model=PracticeReviewOut)
 def review_practice_session(
     session_id: int,
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PracticeReviewOut:
+    user_id = str(current_user.id)
     session = db.get(PracticeSession, session_id)
     if not session or session.user_id != user_id:
         raise HTTPException(status_code=404, detail="Practice session not found")
@@ -835,12 +1017,33 @@ def review_practice_session(
     )
 
 
+@router.delete("/practice-sessions/{session_id}")
+def delete_practice_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    user_id = str(current_user.id)
+    session = db.get(PracticeSession, session_id)
+    if not session or session.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+    db.execute(delete(AnswerRecord).where(AnswerRecord.session_id == session_id))
+    db.delete(session)
+    db.commit()
+    return {"deleted": True}
+
+
 @router.get("/practice-sessions/{session_id}", response_model=PracticeOut)
-def get_practice_session(session_id: int, user_id: str = "demo", db: Session = Depends(get_db)) -> PracticeOut:
+def get_practice_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PracticeOut:
+    user_id = str(current_user.id)
     session = db.get(PracticeSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Practice session not found")
-    if session.user_id != payload.user_id:
+    if session.user_id != user_id:
         raise HTTPException(status_code=404, detail="Practice session not found")
     if session.submitted_at is not None:
         raise HTTPException(status_code=400, detail="Practice session already submitted")
@@ -867,8 +1070,10 @@ def get_practice_session(session_id: int, user_id: str = "demo", db: Session = D
 def submit_practice_session(
     session_id: int,
     payload: PracticeSubmit,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PracticeResult:
+    user_id = str(current_user.id)
     session = db.get(PracticeSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Practice session not found")
@@ -901,7 +1106,7 @@ def submit_practice_session(
         if not is_correct and not is_temporary_ai:
             wrong = db.scalar(
                 select(WrongQuestion).where(
-                    WrongQuestion.user_id == payload.user_id,
+                    WrongQuestion.user_id == user_id,
                     WrongQuestion.question_id == question.id,
                 )
             )
@@ -910,7 +1115,7 @@ def submit_practice_session(
                 wrong.last_wrong_at = datetime.now(timezone.utc)
                 wrong.mastered = False
             else:
-                db.add(WrongQuestion(user_id=payload.user_id, question_id=question.id, wrong_count=1, mastered=False))
+                db.add(WrongQuestion(user_id=user_id, question_id=question.id, wrong_count=1, mastered=False))
 
         results.append(
             AnswerResult(
@@ -937,10 +1142,11 @@ def submit_practice_session(
 
 @router.get("/wrong-questions", response_model=list[WrongQuestionOut])
 def list_wrong_questions(
-    user_id: str = "demo",
     mastered: bool | None = False,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[WrongQuestionOut]:
+    user_id = str(current_user.id)
     conditions = [WrongQuestion.user_id == user_id]
     if mastered is not None:
         conditions.append(WrongQuestion.mastered.is_(mastered))
@@ -961,9 +1167,10 @@ def list_wrong_questions(
 @router.post("/wrong-questions/{question_id}/mastered")
 def mark_wrong_question_mastered(
     question_id: int,
-    user_id: str = "demo",
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, bool]:
+    user_id = str(current_user.id)
     wrong = db.scalar(
         select(WrongQuestion).where(
             WrongQuestion.user_id == user_id,
@@ -978,7 +1185,11 @@ def mark_wrong_question_mastered(
 
 
 @router.get("/statistics/overview", response_model=StatisticsOverview)
-def statistics_overview(user_id: str = "demo", db: Session = Depends(get_db)) -> StatisticsOverview:
+def statistics_overview(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StatisticsOverview:
+    user_id = str(current_user.id)
     total_sessions = db.scalar(select(func.count(PracticeSession.id)).where(PracticeSession.user_id == user_id)) or 0
     total_answers = db.scalar(
         select(func.count(AnswerRecord.id))
@@ -1008,9 +1219,14 @@ def statistics_overview(user_id: str = "demo", db: Session = Depends(get_db)) ->
 
 
 @router.get("/statistics/chapters", response_model=list[ChapterStatistics])
-def chapter_statistics(user_id: str = "demo", db: Session = Depends(get_db)) -> list[ChapterStatistics]:
+def chapter_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ChapterStatistics]:
+    user_id = str(current_user.id)
     chapters = db.scalars(select(Chapter).order_by(Chapter.order_index)).all()
 
+    # 1. 统计每章的答题数据
     stats_rows = db.execute(
         select(
             Question.chapter_id,
@@ -1028,23 +1244,93 @@ def chapter_statistics(user_id: str = "demo", db: Session = Depends(get_db)) -> 
     ).all()
     stats_map = {row.chapter_id: row for row in stats_rows}
 
-    return [
-        ChapterStatistics(
-            chapter_id=chapter.id,
-            chapter_title=chapter.title,
-            answered=stats_map[chapter.id].answered if chapter.id in stats_map else 0,
-            correct_rate=(
-                round(stats_map[chapter.id].correct / stats_map[chapter.id].answered, 4)
-                if chapter.id in stats_map and stats_map[chapter.id].answered
-                else 0
-            ),
+    # 2. 统计每章的题目总数（排除短答题）
+    total_rows = db.execute(
+        select(
+            Question.chapter_id,
+            func.count(Question.id).label("total"),
         )
-        for chapter in chapters
-    ]
+        .where(
+            Question.archived.is_(False),
+            Question.parent_question_id.is_(None),
+            Question.type != "short_answer",
+        )
+        .group_by(Question.chapter_id)
+    ).all()
+    total_map = {row.chapter_id: row.total for row in total_rows}
+
+    # 3. 统计每章的错题掌握情况
+    wrong_rows = db.execute(
+        select(
+            Question.chapter_id,
+            func.count(WrongQuestion.id).label("total_wrong"),
+            func.count()
+            .filter(WrongQuestion.mastered.is_(True))
+            .label("mastered"),
+        )
+        .join(Question, Question.id == WrongQuestion.question_id)
+        .where(WrongQuestion.user_id == user_id)
+        .group_by(Question.chapter_id)
+    ).all()
+    wrong_map = {row.chapter_id: row for row in wrong_rows}
+
+    # 4. 计算综合掌握度
+    results = []
+    for chapter in chapters:
+        stats = stats_map.get(chapter.id)
+        total_questions = total_map.get(chapter.id, 0)
+        wrong_stats = wrong_map.get(chapter.id)
+
+        answered = stats.answered if stats else 0
+        correct = stats.correct if stats else 0
+        correct_rate = round(correct / answered, 4) if answered else 0
+
+        # 题目覆盖率：已答题目数 / 总题目数
+        coverage = round(answered / total_questions, 4) if total_questions else 0
+
+        # 错题掌握率：已掌握错题数 / 总错题数
+        total_wrong = wrong_stats.total_wrong if wrong_stats else 0
+        mastered = wrong_stats.mastered if wrong_stats else 0
+        mastered_rate = round(mastered / total_wrong, 4) if total_wrong else 1.0  # 无错题视为完全掌握
+
+        # 综合掌握度计算 (0-100分)
+        # 权重：正确率 50% + 覆盖率 30% + 错题掌握 20%
+        if answered == 0:
+            mastery_score = 0
+        else:
+            # 正确率得分 (0-50分)
+            correct_score = correct_rate * 50
+
+            # 覆盖率得分 (0-30分)
+            coverage_score = min(coverage, 1.0) * 30
+
+            # 错题掌握得分 (0-20分)
+            mastery_score_base = mastered_rate * 20
+
+            mastery_score = round(correct_score + coverage_score + mastery_score_base, 1)
+
+        results.append(
+            ChapterStatistics(
+                chapter_id=chapter.id,
+                chapter_title=chapter.title,
+                answered=answered,
+                total_questions=total_questions,
+                correct_rate=correct_rate,
+                coverage=coverage,
+                mastered_rate=mastered_rate,
+                mastery_score=mastery_score,
+            )
+        )
+
+    return results
 
 
 @router.get("/statistics/question-types", response_model=list[QuestionTypeStatistics])
-def question_type_statistics(user_id: str = "demo", db: Session = Depends(get_db)) -> list[QuestionTypeStatistics]:
+def question_type_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[QuestionTypeStatistics]:
+    user_id = str(current_user.id)
     rows = db.execute(
         select(
             Question.type.label("question_type"),
@@ -1071,10 +1357,11 @@ def question_type_statistics(user_id: str = "demo", db: Session = Depends(get_db
 
 @router.get("/statistics/recommendations", response_model=list[StudyRecommendation])
 def study_recommendations(
-    user_id: str = "demo",
     limit: int = 4,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[StudyRecommendation]:
+    user_id = str(current_user.id)
     limit = min(max(limit, 1), 9)
     chapters = db.scalars(select(Chapter).order_by(Chapter.order_index)).all()
     stats_rows = db.execute(

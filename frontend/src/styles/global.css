@@ -297,7 +297,7 @@ button {
 
 .history-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 10px;
   align-items: center;
   width: 100%;
@@ -307,6 +307,7 @@ button {
   color: var(--ink);
   text-align: left;
   background: #fffef9;
+  cursor: pointer;
 }
 
 .history-row strong {
@@ -327,6 +328,23 @@ button {
 .history-row b {
   color: var(--teal);
   white-space: nowrap;
+}
+
+.history-delete {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #ead1cf;
+  border-radius: 8px;
+  color: #a3413e;
+  background: #fff7f5;
+}
+
+.history-delete:hover {
+  border-color: #c85852;
+  color: #ffffff;
+  background: #c85852;
 }
 
 .compact-ai .ai-generate-section,
@@ -1578,9 +1596,12 @@ button {
     grid-template-columns: 64px minmax(80px, 1fr) 46px 38px;
   }
 
-  .runner-head,
-  .history-row {
+  .runner-head {
     grid-template-columns: 1fr;
+  }
+
+  .history-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
   }
 
   .runner-head {

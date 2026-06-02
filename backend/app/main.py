@@ -2,14 +2,25 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api.routes import router
 from app.core.config import get_settings
+from app.core.limiter import limiter
+from app.core.logging import setup_logging, get_logger
 
+
+# 初始化日志
+setup_logging()
+logger = get_logger(__name__)
 
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -18,3 +29,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+
+logger.info(f"应用启动: {settings.app_name}")

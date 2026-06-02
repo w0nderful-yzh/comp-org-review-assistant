@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     ai_request_timeout: float = 45.0
     ai_enabled: bool = True
 
+    # JWT 认证配置
+    secret_key: str = "change-me-in-production"
+    token_algorithm: str = "HS256"
+    token_expire_minutes: int = 1440  # 24 小时
+
     model_config = SettingsConfigDict(
         env_file=str(_ROOT / ".env"),
         env_file_encoding="utf-8",

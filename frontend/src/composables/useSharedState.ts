@@ -1,15 +1,31 @@
 import { ref } from "vue";
 import { api, type Chapter, type StatisticsOverview } from "../api/client";
+import { useAuth } from "./useAuth";
 
 // Module-level refs — shared across all components that call useSharedState()
 const chapters = ref<Chapter[]>([]);
 const overview = ref<StatisticsOverview | null>(null);
 
 export function useSharedState() {
+  const { isAuthenticated } = useAuth();
+
   async function refreshAll() {
-    const [chapterRows, overviewData] = await Promise.all([api.chapters(), api.overview()]);
-    chapters.value = chapterRows;
-    overview.value = overviewData;
+    if (!isAuthenticated.value) return;
+    try {
+      // Load chapters and overview independently so one failure doesn't block the other
+      const [chapterResult, overviewResult] = await Promise.allSettled([
+        api.chapters(),
+        api.overview(),
+      ]);
+      if (chapterResult.status === "fulfilled") {
+        chapters.value = chapterResult.value;
+      }
+      if (overviewResult.status === "fulfilled") {
+        overview.value = overviewResult.value;
+      }
+    } catch {
+      // Silently fail if not authenticated
+    }
   }
 
   function percent(value: number) {

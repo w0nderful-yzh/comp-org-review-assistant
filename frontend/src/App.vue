@@ -1,11 +1,15 @@
 <template>
-  <main class="app-shell">
+  <div v-if="!isAuthenticated" class="auth-wrapper">
+    <LoginView />
+  </div>
+  <main v-else class="app-shell">
+    <GuideModal v-if="showGuide" @close="showGuide = false" />
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">组</div>
         <div>
           <h1>计算机组成原理复习助手</h1>
-          <p>MVP 工作台</p>
+          <p>{{ user?.nickname || user?.student_id || "学习中" }}</p>
         </div>
       </div>
 
@@ -38,6 +42,11 @@
           <strong>{{ percent(overview?.correct_rate ?? 0) }}</strong>
         </div>
       </section>
+
+      <button class="btn-logout" @click="handleLogout">
+        <LogOut :size="16" />
+        <span>退出登录</span>
+      </button>
     </aside>
 
     <section class="workspace">
@@ -68,30 +77,40 @@
       />
       <StatsView v-else-if="activeView === 'stats'" ref="statsRef" />
       <KnowledgeView v-else-if="activeView === 'knowledge'" ref="knowledgeRef" />
+
+      <footer class="app-disclaimer">
+        <p>本系统知识库从 HDU 教学课件中提取，仅供学习参考。AI 生成内容可能存在错误，请结合教材使用。本系统不保证与教材完全一致，使用者应自行承担使用风险。</p>
+      </footer>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import {
   BarChart3,
   BookOpen,
   FileText,
+  LogOut,
   RefreshCw,
   RotateCcw,
 } from "@lucide/vue";
+import { useAuth } from "./composables/useAuth";
 import { useSharedState } from "./composables/useSharedState";
+import LoginView from "./components/LoginView.vue";
+import GuideModal from "./components/GuideModal.vue";
 import PracticeView from "./components/PracticeView.vue";
 import WrongQuestionsView from "./components/WrongQuestionsView.vue";
 import StatsView from "./components/StatsView.vue";
 import KnowledgeView from "./components/KnowledgeView.vue";
 
+const { isAuthenticated, user, logout, fetchUser } = useAuth();
 const { chapters, overview, refreshAll, percent } = useSharedState();
 
 const activeView = ref<"practice" | "wrong" | "stats" | "knowledge">("practice");
 const practiceMode = ref<string>("chapter");
 const error = ref("");
+const showGuide = ref(false);
 
 const practiceRef = ref<InstanceType<typeof PracticeView> | null>(null);
 const wrongRef = ref<InstanceType<typeof WrongQuestionsView> | null>(null);
@@ -120,15 +139,15 @@ async function handleRefresh() {
 }
 
 async function handleStartWrongPractice() {
-  if (practiceRef.value) {
-    activeView.value = "practice";
-    practiceRef.value.startWrongPractice();
-  }
+  activeView.value = "practice";
+  await nextTick();
+  practiceRef.value?.startWrongPractice();
 }
 
-function switchView(view: typeof activeView.value) {
+async function switchView(view: typeof activeView.value) {
   activeView.value = view;
   error.value = "";
+  await nextTick();
   if (view === "wrong") wrongRef.value?.load();
   else if (view === "stats") statsRef.value?.load();
   else if (view === "knowledge") knowledgeRef.value?.load();
@@ -141,5 +160,73 @@ async function refreshCurrent() {
   else await refreshAll();
 }
 
-onMounted(refreshAll);
+function handleLogout() {
+  logout();
+}
+
+onMounted(async () => {
+  if (isAuthenticated.value) {
+    await fetchUser();
+    await refreshAll();
+    // Show guide for existing session if not hidden
+    if (localStorage.getItem('hideGuide') !== 'true') {
+      showGuide.value = true;
+    }
+  }
+});
+
+// Watch for login state changes and refresh data
+watch(isAuthenticated, async (newValue) => {
+  if (newValue) {
+    await refreshAll();
+    // Show guide if user hasn't hidden it
+    if (localStorage.getItem('hideGuide') !== 'true') {
+      showGuide.value = true;
+    }
+  }
+});
 </script>
+
+<style scoped>
+.auth-wrapper {
+  min-height: 100vh;
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  margin: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.btn-logout:hover {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+
+.app-disclaimer {
+  padding: 12px 20px;
+  margin-top: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fafafa;
+}
+
+.app-disclaimer p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9ca3af;
+  text-align: center;
+}
+</style>

@@ -51,7 +51,7 @@ class QuestionReviewOut(QuestionOut):
     answer: Any
 
 
-SourceScope = Literal["original_only", "standard", "supplement"]
+SourceScope = Literal["original_only", "standard", "ai_new", "ai_pool"]
 
 
 class PracticeCreate(BaseModel):
@@ -60,7 +60,6 @@ class PracticeCreate(BaseModel):
     question_count: int = Field(default=5, ge=1, le=30)
     question_types: list[QuestionType] | None = None
     source_scope: SourceScope = "standard"
-    user_id: str = "demo"
 
 
 class PracticeOut(BaseModel):
@@ -74,13 +73,20 @@ class PracticeOut(BaseModel):
     questions: list[QuestionOut]
 
 
+class AllQuestionsCompletedOut(BaseModel):
+    completed: bool = True
+    message: str
+    total_questions: int
+    answered_questions: int
+    suggestions: list[str]
+
+
 class SubmittedAnswer(BaseModel):
     question_id: int
     user_answer: Any
 
 
 class PracticeSubmit(BaseModel):
-    user_id: str = "demo"
     answers: list[SubmittedAnswer]
 
 
@@ -153,7 +159,11 @@ class ChapterStatistics(BaseModel):
     chapter_id: int
     chapter_title: str
     answered: int
+    total_questions: int
     correct_rate: float
+    coverage: float  # 题目覆盖率
+    mastered_rate: float  # 错题掌握率
+    mastery_score: float  # 综合掌握度 (0-100)
 
 
 class QuestionTypeStatistics(BaseModel):
@@ -179,7 +189,6 @@ class AiQuestionDraftCreate(BaseModel):
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     count: int = Field(default=3, ge=1, le=5)
     focus: str | None = None
-    user_id: str = "demo"
 
 
 class AiQuestionDraftOut(BaseModel):
@@ -228,3 +237,29 @@ class QuestionFeedbackOut(BaseModel):
 class AiStatusOut(BaseModel):
     enabled: bool
     daily_remaining: int
+
+
+# ========== 认证相关 Schema ==========
+
+
+class UserRegister(BaseModel):
+    student_id: str = Field(..., pattern=r"^\d{8}$", description="8位学号")
+    password: str = Field(..., min_length=6, max_length=128)
+    nickname: str | None = None
+
+
+class UserLogin(BaseModel):
+    student_id: str = Field(..., pattern=r"^\d{8}$", description="8位学号")
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: int
+    student_id: str
+    nickname: str | None
+    created_at: datetime

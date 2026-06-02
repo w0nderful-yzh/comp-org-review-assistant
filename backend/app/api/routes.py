@@ -809,6 +809,7 @@ def review_practice_session(
     ).all()
     questions = session_top_level_questions(db, records)
     feedback_map = load_feedback_map(db, collect_question_tree_ids(db, questions), user_id)
+    submitted = session.submitted_at is not None
     return PracticeReviewOut(
         id=session.id,
         mode=session.mode,
@@ -823,11 +824,11 @@ def review_practice_session(
             AnswerReviewResult(
                 question_id=record.question_id,
                 user_answer=record.user_answer,
-                is_correct=record.is_correct,
-                score=float(record.score) if record.score is not None else None,
-                feedback=record.feedback,
-                correct_answer=public_answer(record.question.answer_json),
-                explanation=record.question.explanation,
+                is_correct=record.is_correct if submitted else None,
+                score=float(record.score) if submitted and record.score is not None else None,
+                feedback=record.feedback if submitted else None,
+                correct_answer=public_answer(record.question.answer_json) if submitted else None,
+                explanation=record.question.explanation if submitted else None,
             )
             for record in records
         ],
@@ -839,6 +840,10 @@ def get_practice_session(session_id: int, user_id: str = "demo", db: Session = D
     session = db.get(PracticeSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Practice session not found")
+    if session.user_id != payload.user_id:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+    if session.submitted_at is not None:
+        raise HTTPException(status_code=400, detail="Practice session already submitted")
     records = db.scalars(
         select(AnswerRecord)
         .where(AnswerRecord.session_id == session_id)
@@ -976,7 +981,12 @@ def mark_wrong_question_mastered(
 def statistics_overview(user_id: str = "demo", db: Session = Depends(get_db)) -> StatisticsOverview:
     total_sessions = db.scalar(select(func.count(PracticeSession.id)).where(PracticeSession.user_id == user_id)) or 0
     total_answers = db.scalar(
-        select(func.count(AnswerRecord.id)).join(PracticeSession).where(PracticeSession.user_id == user_id)
+        select(func.count(AnswerRecord.id))
+        .join(PracticeSession)
+        .where(
+            PracticeSession.user_id == user_id,
+            AnswerRecord.is_correct.isnot(None),
+        )
     ) or 0
     correct_answers = db.scalar(
         select(func.count(AnswerRecord.id))

@@ -633,6 +633,22 @@ function answerableQuestions(questions: Question[]) {
   return questions.flatMap((question) => question.type === "question_group" ? question.children : [question]);
 }
 
+function questionMap(questions: Question[]) {
+  return new Map(answerableQuestions(questions).map((question) => [question.id, question]));
+}
+
+function isEmptyStoredAnswer(value: unknown) {
+  return value == null || (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0);
+}
+
+function normalizeStoredAnswer(question: Question | undefined, value: unknown): string | string[] {
+  if (!question || isEmptyStoredAnswer(value)) {
+    return question?.type === "multiple_choice" || question?.type === "fill_blank" || question?.type === "cloze" ? [] : "";
+  }
+  if (Array.isArray(value)) return value.map((item) => String(item ?? ""));
+  return String(value ?? "");
+}
+
 async function loadHistory() {
   historyItems.value = await api.practiceHistory();
 }
@@ -719,6 +735,8 @@ async function openHistory(sessionId: number) {
   resetAnswerState();
   try {
     const review = await api.reviewPractice(sessionId);
+    practiceMode.value = review.mode as typeof practiceMode.value;
+    selectedChapterId.value = review.chapter_id;
     session.value = {
       id: review.id,
       mode: review.mode,
@@ -729,18 +747,22 @@ async function openHistory(sessionId: number) {
       submitted_at: review.submitted_at,
       questions: review.questions,
     };
+    const questionsById = questionMap(review.questions);
     for (const item of review.results) {
-      answers[item.question_id] = Array.isArray(item.user_answer)
-        ? item.user_answer.map((value) => String(value ?? ""))
-        : String(item.user_answer ?? "");
+      answers[item.question_id] = normalizeStoredAnswer(questionsById.get(item.question_id), item.user_answer);
     }
-    result.value = {
-      session_id: review.id,
-      score: review.score ?? 0,
-      total: review.results.length,
-      results: review.results,
-    };
-    isReviewMode.value = true;
+    if (review.submitted_at) {
+      result.value = {
+        session_id: review.id,
+        score: review.score ?? 0,
+        total: review.results.length,
+        results: review.results,
+      };
+      isReviewMode.value = true;
+    } else {
+      result.value = null;
+      isReviewMode.value = false;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) {
     error.value = err instanceof Error ? err.message : "打开练习记录失败";

@@ -278,6 +278,34 @@ def test_practice_history_and_review_flow() -> None:
         cleanup_test_data(chapter_id, user_id)
 
 
+def test_unsubmitted_practice_review_hides_answers_and_stats_ignore_it() -> None:
+    chapter_id = 909
+    user_id = f"pytest-{uuid4()}"
+    cleanup_test_data(chapter_id, user_id)
+
+    try:
+        question_id = seed_test_question(chapter_id)
+        session_id = create_session(chapter_id, user_id)
+
+        review_response = client.get(f"/api/practice-sessions/{session_id}/review?user_id={user_id}")
+        assert review_response.status_code == 200
+        review = review_response.json()
+        assert review["submitted_at"] is None
+        assert review["questions"][0]["id"] == question_id
+        assert review["results"][0]["is_correct"] is None
+        assert review["results"][0]["correct_answer"] is None
+        assert review["results"][0]["explanation"] is None
+
+        overview_response = client.get(f"/api/statistics/overview?user_id={user_id}")
+        assert overview_response.status_code == 200
+        overview = overview_response.json()
+        assert overview["total_sessions"] == 1
+        assert overview["total_answers"] == 0
+        assert overview["wrong_question_count"] == 0
+    finally:
+        cleanup_test_data(chapter_id, user_id)
+
+
 def test_question_group_practice_submits_child_answers() -> None:
     chapter_id = 908
     user_id = f"pytest-{uuid4()}"

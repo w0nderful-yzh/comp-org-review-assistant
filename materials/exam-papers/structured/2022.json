@@ -18,12 +18,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "analysis-2",
@@ -42,12 +37,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "analysis-3",
@@ -74,12 +64,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-1",
@@ -98,12 +83,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-2",
@@ -130,12 +110,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "instruction-1",
@@ -162,16 +137,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "instruction-2",
@@ -190,12 +156,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "control-1",
@@ -214,12 +175,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "control-2",
@@ -246,12 +202,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "io-1",
@@ -278,12 +229,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "model-arm",
@@ -344,8 +290,12 @@
       ],
       "source_images": [
         {
-          "filename": "7.png",
-          "label": "原卷试题图页 1"
+          "filename": "2022_7_30_30.png",
+          "label": "ARM CPU 结构图"
+        },
+        {
+          "filename": "2022_7_500_30.png",
+          "label": "微程序流程图"
         }
       ]
     },
@@ -392,8 +342,8 @@
       ],
       "source_images": [
         {
-          "filename": "8.png",
-          "label": "原卷试题图页 1"
+          "filename": "2022_8_20_20.png",
+          "label": "RISC-V 模型机结构图"
         }
       ]
     }

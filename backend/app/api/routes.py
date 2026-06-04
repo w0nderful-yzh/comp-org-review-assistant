@@ -617,7 +617,6 @@ def get_exam_paper_pdf(
 def get_exam_paper_image(
     year: int,
     filename: str,
-    current_user: User = Depends(get_current_user),
 ) -> FileResponse:
     get_exam_paper_row(year)
     if "/" in filename or "\\" in filename:
@@ -626,7 +625,11 @@ def get_exam_paper_image(
     if not image_path.is_file():
         raise HTTPException(status_code=404, detail="Exam image not found")
     media_type = "image/jpeg" if image_path.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
-    return FileResponse(image_path, media_type=media_type)
+    return FileResponse(
+        image_path,
+        media_type=media_type,
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @router.get("/chapters/{chapter_id}/courseware-pdf")

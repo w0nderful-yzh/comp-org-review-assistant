@@ -44,8 +44,8 @@
       ],
       "source_images": [
         {
-          "filename": "1.png",
-          "label": "原卷试题图页 1"
+          "filename": "5_crop_cpu_arch.png",
+          "label": "MIPS 单周期 CPU 结构图"
         }
       ]
     },
@@ -66,12 +66,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-3",
@@ -106,16 +101,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1.png",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "2.png",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-4",
@@ -150,12 +136,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "2.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-5",
@@ -182,12 +163,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "3.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-6",
@@ -206,16 +182,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "3.png",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-7",
@@ -242,12 +209,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-8",
@@ -266,12 +228,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-9",
@@ -290,12 +247,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-10",
@@ -314,12 +266,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-11",
@@ -346,12 +293,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-12",
@@ -386,12 +328,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     }
   ]
 }

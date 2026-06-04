@@ -34,12 +34,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223660122.jpg",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "analysis-2",
@@ -58,12 +53,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223660122.jpg",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "analysis-3",
@@ -82,12 +72,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223660122.jpg",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-1",
@@ -154,12 +139,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223660122.jpg",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "instruction-1",
@@ -218,16 +198,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223660122.jpg",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "1724223687676.jpg",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "control-1",
@@ -236,6 +207,12 @@
       "title": "模型计算机 X 控制器设计",
       "score": 16,
       "stem": "16 位模型计算机 X 的系统结构如原卷图 1，指令系统格式如第三题。取指周期 M0：MEM[PC]→IR，PC+1→PC，IDC。指令系统有 MOV DR,Imme 和 JMP offset 两条指令。",
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "模型机结构图（图 1）"
+        }
+      ],
       "sub_questions": [
         {
           "id": "control-1-1",
@@ -260,12 +237,6 @@
           "score": 5,
           "answer_type": "text",
           "options": []
-        }
-      ],
-      "source_images": [
-        {
-          "filename": "1724223687676.jpg",
-          "label": "原卷试题图页 1"
         }
       ]
     },
@@ -294,12 +265,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223687676.jpg",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "model-arm",
@@ -326,16 +292,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "1724223687676.jpg",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "1724223695943.jpg",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "model-riscv",
@@ -344,6 +301,12 @@
       "title": "RV32I 多周期 RISC-V 模型机（选做）",
       "score": 21,
       "stem": "一个能实现 RV32I 指令集的多周期 RISC-V 模型机，结构如原卷图 2。",
+      "source_images": [
+        {
+          "filename": "1724223695943.jpg",
+          "label": "RISC-V 模型机结构图（图 2）"
+        }
+      ],
       "sub_questions": [
         {
           "id": "model-riscv-1",
@@ -352,12 +315,6 @@
           "score": 21,
           "answer_type": "text",
           "options": []
-        }
-      ],
-      "source_images": [
-        {
-          "filename": "1724223695943.jpg",
-          "label": "原卷试题图页 1"
         }
       ]
     }

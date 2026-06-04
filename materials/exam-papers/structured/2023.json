@@ -28,12 +28,7 @@
           "score": 2
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "analysis-2",
@@ -62,12 +57,7 @@
           "score": 5
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-1",
@@ -84,12 +74,7 @@
           "score": 7
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-2",
@@ -118,12 +103,7 @@
           "score": 2
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "memory-3",
@@ -152,12 +132,7 @@
           "score": 3
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "instruction-1",
@@ -180,16 +155,7 @@
           "score": 9
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        },
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 2"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "instruction-2",
@@ -206,12 +172,7 @@
           "score": 6
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "control-1",
@@ -234,12 +195,7 @@
           "score": 3
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "control-2",
@@ -270,8 +226,8 @@
       ],
       "source_images": [
         {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
+          "filename": "7_crop_micro_flow.png",
+          "label": "微程序流程图"
         }
       ]
     },
@@ -409,12 +365,7 @@
           ]
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "model-arm",
@@ -457,8 +408,12 @@
       ],
       "source_images": [
         {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
+          "filename": "6_crop_cpu_arch.png",
+          "label": "模型机 CPU 结构图"
+        },
+        {
+          "filename": "7_crop_micro_flow.png",
+          "label": "微程序流程图"
         }
       ]
     },
@@ -503,8 +458,8 @@
       ],
       "source_images": [
         {
-          "filename": "7.png",
-          "label": "原卷试题图页 1"
+          "filename": "7_crop_riscv_arch.png",
+          "label": "RISC-V 模型机结构图"
         }
       ]
     }

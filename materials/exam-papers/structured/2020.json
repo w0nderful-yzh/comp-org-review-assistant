@@ -8,6 +8,12 @@
       "title": "8 位模型机控制器与微指令",
       "score": 10,
       "stem": "图 1 是某 8 位模型机结构框图，IR、PC、MEM、AR、R0-R3、ALU 等部件及控制信号已给出。图 2 给出某指令执行流程。",
+      "source_images": [
+        {
+          "filename": "4_crop_model_machine.png",
+          "label": "模型机结构框图"
+        }
+      ],
       "sub_questions": [
         {
           "id": "part1-1-1",
@@ -40,12 +46,6 @@
           "score": 2,
           "answer_type": "text",
           "options": []
-        }
-      ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
         }
       ]
     },
@@ -90,12 +90,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-3",
@@ -156,12 +151,7 @@
           ]
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-5",
@@ -188,12 +178,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-6",
@@ -228,12 +213,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "4.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part1-7",
@@ -268,12 +248,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-1",
@@ -300,12 +275,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-2",
@@ -324,12 +294,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "5.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-3",
@@ -372,12 +337,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     },
     {
       "id": "part2-4",
@@ -412,12 +372,7 @@
           "options": []
         }
       ],
-      "source_images": [
-        {
-          "filename": "6.png",
-          "label": "原卷试题图页 1"
-        }
-      ]
+      "source_images": []
     }
   ]
 }

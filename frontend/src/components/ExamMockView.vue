@@ -1,184 +1,254 @@
 <template>
   <section class="exam-page">
-    <header class="exam-toolbar">
-      <div class="year-tabs" aria-label="选择真题年份">
+    <!-- ===== YEAR SELECTION SCREEN ===== -->
+    <template v-if="examState === 'selecting'">
+      <div class="exam-select-header">
+        <div>
+          <p class="eyebrow">Real Exam</p>
+          <h2>历年真题模拟</h2>
+          <p class="exam-select-desc">选择年份进入模拟考试，系统自动计时并记录答题进度。</p>
+        </div>
+      </div>
+
+      <section v-if="error" class="notice error">{{ error }}</section>
+
+      <div class="year-card-grid">
         <button
           v-for="paper in papers"
           :key="paper.year"
-          :class="{ selected: paper.year === selectedYear }"
-          @click="selectPaper(paper.year)"
+          class="year-card"
+          @click="enterExam(paper.year)"
         >
-          {{ paper.year }}
-        </button>
-      </div>
-      <div class="toolbar-actions">
-        <button class="secondary-button" :disabled="!activePaper" @click="openPaperPdf">
-          <FileText :size="16" />
-          <span>原卷备用</span>
-        </button>
-        <button class="secondary-button" :disabled="!activePaper" @click="downloadCurrentPaper">
-          <Download :size="16" />
-          <span>下载试卷</span>
-        </button>
-      </div>
-    </header>
-
-    <section v-if="error" class="notice error">{{ error }}</section>
-
-    <div class="exam-workspace">
-      <main class="question-column">
-        <section class="paper-intro">
-          <div>
-            <p class="eyebrow">Real Exam</p>
-            <h3>{{ activePaper?.title ?? "真题模拟" }}</h3>
-            <span v-if="activePaper">{{ activePaper.duration_minutes }} 分钟 · {{ activePaper.total_score }} 分</span>
+          <div class="year-card-head">
+            <span class="year-badge">{{ paper.year }}</span>
+            <span class="year-card-score">{{ paper.total_score }} 分</span>
           </div>
-          <div class="timer-chip" :class="{ hot: remainingSeconds <= 600 && running }">
-            <Clock3 :size="18" />
-            <strong>{{ timerText }}</strong>
-          </div>
-        </section>
-
-        <section v-if="!hasStructuredQuestions" class="pdf-fallback">
-          <div>
-            <p class="eyebrow">Pending</p>
-            <h3>{{ activePaper?.year }} 年真题还没有结构化</h3>
-            <p>这份卷子还只有 PDF 资源。当前优先把 2023 卷拆成了逐题模式，其他年份可以继续按同样方式补录。</p>
-          </div>
-          <button class="primary-button" @click="openPaperPdf">
-            <FileText :size="18" />
-            <span>打开原卷 PDF</span>
-          </button>
-        </section>
-
-        <template v-else>
-          <section
-            v-for="section in activeSections"
-            :id="`section-${section.id}`"
-            :key="section.id"
-            class="section-band"
-          >
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Section</p>
-                <h3>{{ section.title }}</h3>
-              </div>
-              <b>{{ section.score }} 分</b>
+          <div class="year-card-body">
+            <h3>{{ paper.title }}</h3>
+            <div class="year-card-meta">
+              <span>
+                <Clock3 :size="14" />
+                {{ paper.duration_minutes }} 分钟
+              </span>
+              <span>
+                <FileText :size="14" />
+                {{ paper.questions.length }} 题
+              </span>
+              <span v-if="paperHasImages(paper)" class="year-card-tag">
+                含示意图
+              </span>
             </div>
+          </div>
+          <div class="year-card-foot">
+            <span class="year-card-enter">
+              开始模拟
+              <ChevronRight :size="16" />
+            </span>
+          </div>
+        </button>
+      </div>
+    </template>
 
-            <article
-              v-for="(question, questionIndex) in questionsBySection(section.id)"
-              :id="`exam-question-${question.id}`"
-              :key="question.id"
-              class="exam-question-card"
+    <!-- ===== EXAM WORKSPACE ===== -->
+    <template v-else>
+      <header class="exam-toolbar">
+        <div class="toolbar-left">
+          <button class="back-button" title="返回年份选择" @click="exitToSelect">
+            <ArrowLeft :size="18" />
+          </button>
+          <div class="year-tabs" aria-label="选择真题年份">
+            <button
+              v-for="paper in papers"
+              :key="paper.year"
+              :class="{ selected: paper.year === selectedYear }"
+              @click="selectPaper(paper.year)"
             >
-              <div class="question-head">
-                <span>{{ questionIndex + 1 }}</span>
-                <div>
-                  <h4>{{ question.title }}</h4>
-                  <small>{{ question.number }} · {{ question.score }} 分</small>
-                </div>
-              </div>
-              <p class="question-stem">{{ question.stem }}</p>
-
-              <div class="sub-question-list">
-                <section v-for="sub in question.sub_questions" :key="sub.id" class="sub-question">
-                  <div class="sub-prompt">
-                    <strong>{{ sub.label }}</strong>
-                    <p>{{ sub.prompt }}</p>
-                    <span v-if="sub.score !== null">{{ sub.score }} 分</span>
-                  </div>
-
-                  <div v-if="sub.answer_type === 'single_choice'" class="choice-grid">
-                    <button
-                      v-for="option in sub.options"
-                      :key="option.key"
-                      :disabled="submitted"
-                      :class="{ selected: answers[sub.id] === option.key }"
-                      @click="setAnswer(sub.id, option.key)"
-                    >
-                      <b>{{ option.key }}</b>
-                      <span>{{ option.text }}</span>
-                    </button>
-                  </div>
-
-                  <textarea
-                    v-else
-                    v-model="answers[sub.id]"
-                    :disabled="submitted"
-                    class="inline-answer"
-                    placeholder="在这里作答"
-                    @input="saveDraft"
-                  />
-                </section>
-              </div>
-            </article>
-          </section>
-        </template>
-      </main>
-
-      <aside class="exam-side">
-        <section class="exam-panel session-panel">
-          <p class="eyebrow">Session</p>
-          <h3>{{ statusTitle }}</h3>
-          <span>{{ answeredCount }} / {{ totalAnswerSlots }} 小题已填写</span>
-          <div class="progress-track">
-            <div class="progress-fill" :style="{ width: progressPercent }"></div>
-          </div>
-          <div class="side-actions">
-            <button v-if="!running && !submitted" class="primary-button" :disabled="!activePaper" @click="startExam">
-              <Play :size="17" />
-              <span>{{ paused ? "继续" : "开始模拟" }}</span>
-            </button>
-            <button v-if="running" class="secondary-button" @click="pauseExam">
-              <Pause :size="17" />
-              <span>暂停</span>
-            </button>
-            <button class="secondary-button" :disabled="!activePaper" @click="resetExam">
-              <RotateCcw :size="17" />
-              <span>重置</span>
+              {{ paper.year }}
             </button>
           </div>
-        </section>
-
-        <section v-if="hasStructuredQuestions" class="exam-panel mini-map">
-          <p class="eyebrow">Jump</p>
-          <button
-            v-for="section in activeSections"
-            :key="section.id"
-            @click="jumpToSection(section.id)"
-          >
-            <span>{{ section.title }}</span>
-            <b>{{ sectionAnswered(section.id) }}/{{ sectionTotal(section.id) }}</b>
+        </div>
+        <div class="toolbar-actions">
+          <button class="secondary-button" :disabled="!activePaper" @click="openPaperPdf">
+            <FileText :size="16" />
+            <span>原卷备用</span>
           </button>
-        </section>
-
-        <section class="exam-panel submit-panel">
-          <button v-if="!submitted" class="submit-button wide" :disabled="!activePaper || !hasStarted" @click="submitExam">
-            <CheckCircle2 :size="18" />
-            <span>交卷并查看答案</span>
+          <button class="secondary-button" :disabled="!activePaper" @click="downloadCurrentPaper">
+            <Download :size="16" />
+            <span>下载试卷</span>
           </button>
-          <template v-else>
-            <div class="score-box">
-              <label>
-                <span>自评分</span>
-                <input v-model.number="selfScore" type="number" min="0" :max="activePaper?.total_score ?? 100" @change="saveHistory" />
-              </label>
-              <b>{{ selfScore || 0 }} / {{ activePaper?.total_score ?? 100 }}</b>
+        </div>
+      </header>
+
+      <section v-if="error" class="notice error">{{ error }}</section>
+
+      <div class="exam-workspace">
+        <main class="question-column">
+          <section class="paper-intro">
+            <div>
+              <p class="eyebrow">Real Exam</p>
+              <h3>{{ activePaper?.title ?? "真题模拟" }}</h3>
+              <span v-if="activePaper">{{ activePaper.duration_minutes }} 分钟 · {{ activePaper.total_score }} 分</span>
             </div>
-            <button class="primary-button wide" :disabled="answerLoading" @click="openAnswer">
-              <FileSearch :size="18" />
-              <span>{{ answerUrl ? "刷新答案" : "查看答案 PDF" }}</span>
+            <div class="timer-chip" :class="{ hot: remainingSeconds <= 600 && running }">
+              <Clock3 :size="18" />
+              <strong>{{ timerText }}</strong>
+            </div>
+          </section>
+
+          <section v-if="!hasStructuredQuestions" class="pdf-fallback">
+            <div>
+              <p class="eyebrow">Pending</p>
+              <h3>{{ activePaper?.year }} 年真题还没有结构化</h3>
+              <p>这份卷子还只有 PDF 资源。当前优先把 2023 卷拆成了逐题模式，其他年份可以继续按同样方式补录。</p>
+            </div>
+            <button class="primary-button" @click="openPaperPdf">
+              <FileText :size="18" />
+              <span>打开原卷 PDF</span>
             </button>
+          </section>
+
+          <template v-else>
+            <section
+              v-for="section in activeSections"
+              :id="`section-${section.id}`"
+              :key="section.id"
+              class="section-band"
+            >
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Section</p>
+                  <h3>{{ section.title }}</h3>
+                </div>
+                <b>{{ section.score }} 分</b>
+              </div>
+
+              <article
+                v-for="(question, questionIndex) in questionsBySection(section.id)"
+                :id="`exam-question-${question.id}`"
+                :key="question.id"
+                class="exam-question-card"
+              >
+                <div class="question-head">
+                  <span>{{ questionIndex + 1 }}</span>
+                  <div>
+                    <h4>{{ question.title }}</h4>
+                    <small>{{ question.number }} · {{ question.score }} 分</small>
+                  </div>
+                </div>
+                <p class="question-stem">{{ question.stem }}</p>
+
+                <div v-if="question.source_images?.length" class="question-images">
+                  <figure v-for="img in question.source_images" :key="img.filename" class="source-figure" @click="openImageZoom(img.url, img.label)" style="cursor:zoom-in">
+                    <img :src="img.url" :alt="img.label" loading="lazy" />
+                    <figcaption>{{ img.label }}</figcaption>
+                  </figure>
+                  <p class="image-res-hint">
+                    <Info :size="13" />
+                    示意图为网页版，点击可放大。如需更清晰原图，请使用右上角
+                    <strong>原卷备用</strong> 或 <strong>下载试卷</strong>。
+                  </p>
+                </div>
+
+                <div class="sub-question-list">
+                  <section v-for="sub in question.sub_questions" :key="sub.id" class="sub-question">
+                    <div class="sub-prompt">
+                      <strong>{{ sub.label }}</strong>
+                      <p>{{ sub.prompt }}</p>
+                      <span v-if="sub.score !== null">{{ sub.score }} 分</span>
+                    </div>
+
+                    <div v-if="sub.answer_type === 'single_choice'" class="choice-grid">
+                      <button
+                        v-for="option in sub.options"
+                        :key="option.key"
+                        :disabled="submitted"
+                        :class="{ selected: answers[sub.id] === option.key }"
+                        @click="setAnswer(sub.id, option.key)"
+                      >
+                        <b>{{ option.key }}</b>
+                        <span>{{ option.text }}</span>
+                      </button>
+                    </div>
+
+                    <textarea
+                      v-else
+                      v-model="answers[sub.id]"
+                      :disabled="submitted"
+                      class="inline-answer"
+                      placeholder="在这里作答"
+                      @input="saveDraft"
+                    />
+                  </section>
+                </div>
+              </article>
+            </section>
           </template>
-        </section>
+        </main>
 
-        <section v-if="answerUrl" class="exam-panel answer-panel">
-          <iframe class="answer-pdf-frame" :src="answerUrl" title="真题答案 PDF"></iframe>
-        </section>
-      </aside>
-    </div>
+        <aside class="exam-side">
+          <section class="exam-panel session-panel">
+            <p class="eyebrow">Session</p>
+            <h3>{{ statusTitle }}</h3>
+            <span>{{ answeredCount }} / {{ totalAnswerSlots }} 小题已填写</span>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: progressPercent }"></div>
+            </div>
+            <div class="side-actions">
+              <button v-if="!running && !submitted" class="primary-button" :disabled="!activePaper" @click="startExam">
+                <Play :size="17" />
+                <span>{{ paused ? "继续" : "开始模拟" }}</span>
+              </button>
+              <button v-if="running" class="secondary-button" @click="pauseExam">
+                <Pause :size="17" />
+                <span>暂停</span>
+              </button>
+              <button class="secondary-button" :disabled="!activePaper" @click="resetExam">
+                <RotateCcw :size="17" />
+                <span>重置</span>
+              </button>
+            </div>
+          </section>
 
+          <section v-if="hasStructuredQuestions" class="exam-panel mini-map">
+            <p class="eyebrow">Jump</p>
+            <button
+              v-for="section in activeSections"
+              :key="section.id"
+              @click="jumpToSection(section.id)"
+            >
+              <span>{{ section.title }}</span>
+              <b>{{ sectionAnswered(section.id) }}/{{ sectionTotal(section.id) }}</b>
+            </button>
+          </section>
+
+          <section class="exam-panel submit-panel">
+            <button v-if="!submitted" class="submit-button wide" :disabled="!activePaper || !hasStarted" @click="submitExam">
+              <CheckCircle2 :size="18" />
+              <span>交卷并查看答案</span>
+            </button>
+            <template v-else>
+              <div class="score-box">
+                <label>
+                  <span>自评分</span>
+                  <input v-model.number="selfScore" type="number" min="0" :max="activePaper?.total_score ?? 100" @change="saveHistory" />
+                </label>
+                <b>{{ selfScore || 0 }} / {{ activePaper?.total_score ?? 100 }}</b>
+              </div>
+              <button class="primary-button wide" :disabled="answerLoading" @click="openAnswer">
+                <FileSearch :size="18" />
+                <span>{{ answerUrl ? "刷新答案" : "查看答案 PDF" }}</span>
+              </button>
+            </template>
+          </section>
+
+          <section v-if="answerUrl" class="exam-panel answer-panel">
+            <iframe class="answer-pdf-frame" :src="answerUrl" title="真题答案 PDF"></iframe>
+          </section>
+        </aside>
+      </div>
+    </template>
+
+    <!-- ===== PDF MODAL ===== -->
     <div v-if="paperUrl" class="pdf-modal" role="dialog" aria-modal="true">
       <div class="pdf-modal-head">
         <strong>{{ activePaper?.paper_pdf }}</strong>
@@ -188,17 +258,31 @@
       </div>
       <iframe class="paper-pdf-frame" :src="paperUrl" title="真题原卷 PDF"></iframe>
     </div>
+
+    <!-- ===== IMAGE LIGHTBOX ===== -->
+    <Teleport to="body">
+      <div v-if="zoomImage" class="image-lightbox" @click.self="zoomImage = null" @keydown.escape="zoomImage = null">
+        <button class="lightbox-close" @click="zoomImage = null">
+          <X :size="24" />
+        </button>
+        <img :src="zoomImage.url" :alt="zoomImage.label" />
+        <p class="lightbox-caption">{{ zoomImage.label }}</p>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import {
+  ArrowLeft,
   CheckCircle2,
+  ChevronRight,
   Clock3,
   Download,
   FileSearch,
   FileText,
+  Info,
   Pause,
   Play,
   RotateCcw,
@@ -215,6 +299,7 @@ type ExamHistoryItem = {
 
 const papers = ref<ExamPaper[]>([]);
 const selectedYear = ref<number | null>(null);
+const examState = ref<"selecting" | "active">("selecting");
 const paperUrl = ref("");
 const answerUrl = ref("");
 const answerLoading = ref(false);
@@ -226,6 +311,7 @@ const hasStarted = ref(false);
 const remainingSeconds = ref(0);
 const selfScore = ref<number | null>(null);
 const answers = reactive<Record<string, string>>({});
+const zoomImage = ref<{ url: string; label: string } | null>(null);
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const activePaper = computed(() => papers.value.find((paper) => paper.year === selectedYear.value) ?? null);
@@ -256,6 +342,10 @@ const statusTitle = computed(() => {
   if (paused.value) return "已暂停";
   return "待开始";
 });
+
+function paperHasImages(paper: ExamPaper): boolean {
+  return paper.questions.some((q) => q.source_images?.length > 0);
+}
 
 function clearObjectUrl(url: string) {
   if (url.startsWith("blob:")) URL.revokeObjectURL(url);
@@ -315,6 +405,23 @@ function restoreDraft() {
 function saveDraft() {
   const key = storageKey();
   if (key) localStorage.setItem(key, JSON.stringify(answers));
+}
+
+function enterExam(year: number) {
+  selectedYear.value = year;
+  examState.value = "active";
+  resetExamState(false);
+  restoreDraft();
+  closePaperPdf();
+}
+
+function exitToSelect() {
+  clearTimer();
+  examState.value = "selecting";
+  selectedYear.value = null;
+  closePaperPdf();
+  clearObjectUrl(answerUrl.value);
+  answerUrl.value = "";
 }
 
 async function selectPaper(year: number) {
@@ -438,25 +545,40 @@ function jumpToSection(sectionId: string) {
   document.getElementById(`section-${sectionId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function openImageZoom(url: string, label: string) {
+  zoomImage.value = { url, label };
+}
+
 async function load() {
   error.value = "";
   try {
     papers.value = await api.examPapers();
-    if (!selectedYear.value && papers.value.length) {
-      await selectPaper(papers.value[0].year);
+    if (examState.value === "active" && selectedYear.value) {
+      restoreDraft();
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : "加载真题列表失败";
   }
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && zoomImage.value) {
+    zoomImage.value = null;
+  }
+}
+
 defineExpose({ load });
 
-onMounted(load);
+onMounted(() => {
+  load();
+  document.addEventListener("keydown", handleKeydown);
+});
+
 onBeforeUnmount(() => {
   clearTimer();
   clearObjectUrl(paperUrl.value);
   clearObjectUrl(answerUrl.value);
+  document.removeEventListener("keydown", handleKeydown);
 });
 
 watch(activePaper, (paper) => {
@@ -469,16 +591,134 @@ watch(activePaper, (paper) => {
   min-width: 0;
 }
 
-.exam-toolbar,
-.paper-intro,
-.exam-panel,
-.section-band,
-.exam-question-card,
-.pdf-fallback {
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  background: rgb(255 253 248 / 92%);
+/* ===== YEAR SELECTION ===== */
+
+.exam-select-header {
+  margin-bottom: 8px;
 }
+
+.exam-select-header h2 {
+  margin: 4px 0 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.exam-select-desc {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.year-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.year-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--panel);
+  text-align: left;
+  box-shadow: 0 6px 18px rgb(36 48 47 / 5%);
+  transition: all 0.18s ease;
+  overflow: hidden;
+}
+
+.year-card:hover {
+  border-color: var(--teal);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgb(36 48 47 / 10%);
+}
+
+.year-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 0;
+}
+
+.year-badge {
+  display: inline-grid;
+  width: 52px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.year-card-score {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.year-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.year-card-body h3 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.year-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.year-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.year-card-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(45 124 111 / 10%);
+  color: var(--teal) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.year-card-foot {
+  border-top: 1px solid var(--rule);
+  padding: 10px 16px;
+}
+
+.year-card-enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.year-card:hover .year-card-enter {
+  gap: 8px;
+}
+
+/* ===== TOOLBAR ===== */
 
 .exam-toolbar {
   position: sticky;
@@ -488,9 +728,37 @@ watch(activePaper, (paper) => {
   justify-content: space-between;
   gap: 14px;
   align-items: center;
-  padding: 12px;
+  padding: 10px 12px;
   margin-bottom: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgb(255 253 248 / 92%);
   backdrop-filter: blur(12px);
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.back-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fffef9;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.back-button:hover {
+  border-color: var(--teal);
+  color: var(--teal);
 }
 
 .year-tabs,
@@ -518,6 +786,8 @@ watch(activePaper, (paper) => {
   background: var(--teal);
 }
 
+/* ===== EXAM WORKSPACE ===== */
+
 .exam-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
@@ -537,6 +807,9 @@ watch(activePaper, (paper) => {
   gap: 18px;
   align-items: center;
   padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgb(255 253 248 / 92%);
 }
 
 .paper-intro h3,
@@ -576,6 +849,9 @@ watch(activePaper, (paper) => {
   display: grid;
   gap: 14px;
   padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgb(255 253 248 / 92%);
   scroll-margin-top: 92px;
 }
 
@@ -597,6 +873,8 @@ watch(activePaper, (paper) => {
   display: grid;
   gap: 14px;
   padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
   background: #fffef9;
 }
 
@@ -708,6 +986,65 @@ watch(activePaper, (paper) => {
   color: var(--teal);
 }
 
+/* ===== IMAGES ===== */
+
+.question-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: start;
+}
+
+.source-figure {
+  margin: 0;
+  border: 1px solid #dfe6da;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  cursor: zoom-in;
+  transition: box-shadow 0.15s ease;
+}
+
+.source-figure:hover {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.source-figure img {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.source-figure figcaption {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid #dfe6da;
+  background: #f8faf5;
+}
+
+.image-res-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(240 201 106 / 12%);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.image-res-hint strong {
+  color: var(--teal);
+}
+
+/* ===== BUTTONS ===== */
+
 .primary-button,
 .submit-button {
   color: #fff;
@@ -736,6 +1073,8 @@ watch(activePaper, (paper) => {
   -webkit-text-fill-color: #273533;
 }
 
+/* ===== SIDEBAR ===== */
+
 .exam-side {
   position: sticky;
   top: 84px;
@@ -748,6 +1087,9 @@ watch(activePaper, (paper) => {
   display: grid;
   gap: 12px;
   padding: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgb(255 253 248 / 92%);
 }
 
 .progress-track {
@@ -819,13 +1161,20 @@ watch(activePaper, (paper) => {
   background: #fff;
 }
 
+/* ===== PDF FALLBACK ===== */
+
 .pdf-fallback {
   display: flex;
   justify-content: space-between;
   gap: 18px;
   align-items: center;
   padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgb(255 253 248 / 92%);
 }
+
+/* ===== PDF MODAL ===== */
 
 .pdf-modal {
   position: fixed;
@@ -856,6 +1205,60 @@ watch(activePaper, (paper) => {
   background: #fff;
 }
 
+/* ===== IMAGE LIGHTBOX ===== */
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgb(0 0 0 / 75%);
+  backdrop-filter: blur(4px);
+}
+
+.image-lightbox img {
+  max-width: 95vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 40%);
+}
+
+.lightbox-caption {
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(255 255 255 / 20%);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lightbox-close:hover {
+  background: rgb(255 255 255 / 35%);
+}
+
+/* ===== RESPONSIVE ===== */
+
 @media (max-width: 1100px) {
   .exam-workspace {
     grid-template-columns: 1fr;
@@ -884,6 +1287,10 @@ watch(activePaper, (paper) => {
 
   .timer-chip {
     width: 100%;
+  }
+
+  .year-card-grid {
+    grid-template-columns: 1fr;
   }
 
   .pdf-modal {

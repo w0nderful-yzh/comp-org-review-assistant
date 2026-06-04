@@ -209,6 +209,12 @@ export type ExamSubQuestion = {
   options: Array<{ key: string; text: string }>;
 };
 
+export type ExamSourceImage = {
+  label: string;
+  filename: string;
+  url: string;
+};
+
 export type ExamQuestion = {
   id: string;
   section_id: string;
@@ -216,6 +222,7 @@ export type ExamQuestion = {
   title: string;
   score: number;
   stem: string;
+  source_images: ExamSourceImage[];
   sub_questions: ExamSubQuestion[];
 };
 

@@ -193,6 +193,44 @@ export type AiStatus = {
   daily_remaining: number;
 };
 
+export type ExamSection = {
+  id: string;
+  title: string;
+  score: number;
+  slots: string[];
+};
+
+export type ExamSubQuestion = {
+  id: string;
+  label: string;
+  prompt: string;
+  score: number | null;
+  answer_type: "text" | "single_choice";
+  options: Array<{ key: string; text: string }>;
+};
+
+export type ExamQuestion = {
+  id: string;
+  section_id: string;
+  number: string;
+  title: string;
+  score: number;
+  stem: string;
+  sub_questions: ExamSubQuestion[];
+};
+
+export type ExamPaper = {
+  year: number;
+  title: string;
+  duration_minutes: number;
+  total_score: number;
+  paper_pdf: string;
+  answer_pdf: string;
+  sections: ExamSection[];
+  source_url: string;
+  questions: ExamQuestion[];
+};
+
 export type FeedbackType = "helpful" | "not_helpful" | "flag";
 export type FlagReason = "answer_error" | "unclear_stem" | "ambiguous_options" | "out_of_scope" | "duplicate" | "unclear_explanation";
 
@@ -260,6 +298,9 @@ export const api = {
     request<KnowledgeChunk[]>(`/api/chapters/${chapterId}/knowledge-chunks?limit=${limit}`),
   coursewarePdf: (chapterId: number, download = false) =>
     requestBlob(`/api/chapters/${chapterId}/courseware-pdf${download ? "?download=true" : ""}`),
+  examPapers: () => request<ExamPaper[]>("/api/exam-papers"),
+  examPaperPdf: (year: number, kind: "paper" | "answer", download = false) =>
+    requestBlob(`/api/exam-papers/${year}/${kind}-pdf${download ? "?download=true" : ""}`),
   searchKnowledge: (params: { q: string; chapter_id?: number | null; limit?: number }) => {
     const search = new URLSearchParams();
     search.set("q", params.q);

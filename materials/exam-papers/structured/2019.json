@@ -1,0 +1,373 @@
+{
+  "year": 2019,
+  "questions": [
+    {
+      "id": "part1-1",
+      "section_id": "part1",
+      "number": "一、1",
+      "title": "CPU 与 SRAM 存储器系统连接",
+      "score": 10,
+      "stem": "CPU 字长 16 位，地址线 A0~A15，数据线 D0~D15。存储器系统由 2 片 8K×16bit 和 1 片 16K×16bit SRAM 组成，从地址 2000H 开始占有连续 32KB 空间，按字编址。原卷给出 CPU 与存储器的不完整连接图及控制信号逻辑功能表。",
+      "sub_questions": [
+        {
+          "id": "part1-1-1",
+          "label": "作答",
+          "prompt": "按照给出条件添加逻辑电路，在图 1 上完成 CPU 与存储器系统连接，并标出信号线和地址线连接。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-2",
+      "section_id": "part1",
+      "number": "一、2",
+      "title": "64KW 存储系统带宽提升",
+      "score": 8,
+      "stem": "采用 8K×16bit SRAM 组成 64KW 存储系统，存储器读写时间是总线传送时间的 8 倍，要求提高存储器带宽。",
+      "sub_questions": [
+        {
+          "id": "part1-2-1",
+          "label": "1）",
+          "prompt": "可采用什么方式组织存储器？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-2-2",
+          "label": "2）",
+          "prompt": "写出存储器组织的地址格式并标出各字段含义和位数。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-2-3",
+          "label": "3）",
+          "prompt": "该机器属于 SISD、SIMD、MISD、MIMD 中的哪种结构？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-3",
+      "section_id": "part1",
+      "number": "一、3",
+      "title": "自定义浮点数编码与 X+Y",
+      "score": 20,
+      "stem": "该机支持浮点数格式：数符 1 位、尾数 11 位、阶符 1 位、阶码 3 位；阶码用移码表示，尾数用补码表示。设 X=13/64，并给出 [X]浮、[Y]浮 的编码用于计算 [X+Y]浮。",
+      "sub_questions": [
+        {
+          "id": "part1-3-1",
+          "label": "1）",
+          "prompt": "求 X 的二进制规格化真值。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-2",
+          "label": "2）",
+          "prompt": "将 [X]浮 的编码按给定格式填入空格。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-3",
+          "label": "3）",
+          "prompt": "若采用小端格式存储，写出该浮点数从内存地址 N 开始存储的 16 进制数值。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-4",
+          "label": "4）",
+          "prompt": "写出浮点数加减运算除零操作数检查外的 4 个步骤。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-5",
+          "label": "5）",
+          "prompt": "根据给定 [X]浮 和 [Y]浮，求 [X+Y]浮，写出对阶、尾数运算、规格化、舍入等步骤。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "part2-1",
+      "section_id": "part2",
+      "number": "二、1",
+      "title": "64KW 主存与 1KW Cache 地址格式",
+      "score": 6,
+      "stem": "主存容量 64KW，Cache 容量 1KW，2 路组相联，每块 2 个字，字长 16bit。",
+      "sub_questions": [
+        {
+          "id": "part2-1-1",
+          "label": "作答",
+          "prompt": "画出主存地址格式，并标出每个字段的含义和位数。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-2",
+      "section_id": "part2",
+      "number": "二、2",
+      "title": "Cache 组号计算",
+      "score": 2,
+      "stem": "在第二大题 Cache 条件下。",
+      "sub_questions": [
+        {
+          "id": "part2-2-1",
+          "label": "作答",
+          "prompt": "主存地址 2300H 可映射到 Cache 的哪一组？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-3",
+      "section_id": "part2",
+      "number": "二、3",
+      "title": "RISC 指令格式设计",
+      "score": 10,
+      "stem": "机器采用 RISC 指令系统，共有 8 个 16 位寄存器，指令字长固定为双字长；最多定义 128 种操作，具有立即、直接、间接、寄存器、寄存器间接、变址、相对、堆栈等 8 种寻址方式；指令包括 R-R、R-S、S-R 三种类型。",
+      "sub_questions": [
+        {
+          "id": "part2-3-1",
+          "label": "作答",
+          "prompt": "设计该机指令格式，并说明各字段功能与位数。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-4",
+      "section_id": "part2",
+      "number": "二、4",
+      "title": "哈佛结构指令 Cache 程序分析",
+      "score": 16,
+      "stem": "改为哈佛结构，在指令存储器设置容量 1KW 的 Cache，2 路组相联，每块 2 个字。按题 3 指令格式，给出一段 C 程序及汇编程序，从 L0 到 L2（不包括 L2）执行。",
+      "sub_questions": [
+        {
+          "id": "part2-4-1",
+          "label": "1）",
+          "prompt": "将标号 L1 开始的 4 条指令的源操作数寻址方式填入表 3。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-2",
+          "label": "2）",
+          "prompt": "分析执行该指令段的指令 Cache 命中率 h。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-3",
+          "label": "3）",
+          "prompt": "若指令存储器访问 10ns、Cache 访问 2ns，求平均访问时间 ta。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-4",
+          "label": "4）",
+          "prompt": "求 Cache 效率 e。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-5",
+          "label": "5）",
+          "prompt": "若指令地址 L0 从 2100H 开始，求 L1 所在指令地址。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-6",
+          "label": "6）",
+          "prompt": "求指令 JNE L1 的偏移地址，要求用补码表示并写出计算公式。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "3.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part3-1",
+      "section_id": "part3",
+      "number": "三、1",
+      "title": "微指令格式设计",
+      "score": 6,
+      "stem": "模型机字长 8 位，地址总线 8 位，采用微程序控制器。共有指令 100 条，每条平均需 7 条微指令实现，其中 3 条共用；微操作直接控制，下条地址由下址字段给出，J1~J3 采用译码输出。",
+      "sub_questions": [
+        {
+          "id": "part3-1-1",
+          "label": "作答",
+          "prompt": "设计微指令格式，并说明各字段位数和含义。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part3-2",
+      "section_id": "part3",
+      "number": "三、2",
+      "title": "ADD R0,10H 微程序流程补全",
+      "score": 6,
+      "stem": "图 3 是实现 ADD R0,10H 的微程序流程图，缺少三条微指令。指令功能：[R0]+10H→R0，2 字节指令，第二字节为 10H。",
+      "sub_questions": [
+        {
+          "id": "part3-2-1",
+          "label": "作答",
+          "prompt": "填入合适微指令完成流程图，并说明 PC→AR、PC+1→PC 微指令产生的微命令信号。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part4-1",
+      "section_id": "part4",
+      "number": "四",
+      "title": "MIPS 单周期 CPU 与 lw 指令",
+      "score": 16,
+      "stem": "图 4 是实现 32 位 MIPS 单周期模型机结构和数据通路。ALU 支持 ADD、SUB、SLL、AND。指令 lw rt,(rs+imm) 为访存取数：[(rs)+imm]→rt。",
+      "sub_questions": [
+        {
+          "id": "part4-1-1",
+          "label": "1）",
+          "prompt": "在图 4 上画出 lw 指令从取指到完成执行的数据通路。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part4-1-2",
+          "label": "2）",
+          "prompt": "指出该机器采用哈佛结构还是普林斯顿结构，并说明它和冯·诺依曼结构的不同。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part4-1-3",
+          "label": "3）",
+          "prompt": "写出 lw 指令的数据通路对应控制信号取值。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part4-1-4",
+          "label": "4）",
+          "prompt": "若指令在时钟上沿开始执行，PC_NEW 应在上沿还是下沿送入 PC？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part4-1-5",
+          "label": "5）",
+          "prompt": "虚拟存储器中，虚拟地址到物理地址的变换有哪三种方式？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    }
+  ]
+}

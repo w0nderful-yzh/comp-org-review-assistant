@@ -239,6 +239,51 @@ class AiStatusOut(BaseModel):
     daily_remaining: int
 
 
+class ExamSectionOut(BaseModel):
+    id: str
+    title: str
+    score: int
+    slots: list[str]
+
+
+class ExamSubQuestionOut(BaseModel):
+    id: str
+    label: str
+    prompt: str
+    score: float | None = None
+    answer_type: Literal["text", "single_choice"] = "text"
+    options: list[dict[str, str]] = Field(default_factory=list)
+
+
+class ExamSourceImageOut(BaseModel):
+    label: str
+    filename: str
+    url: str
+
+
+class ExamQuestionOut(BaseModel):
+    id: str
+    section_id: str
+    number: str
+    title: str
+    score: float
+    stem: str
+    source_images: list[ExamSourceImageOut] = Field(default_factory=list)
+    sub_questions: list[ExamSubQuestionOut] = Field(default_factory=list)
+
+
+class ExamPaperOut(BaseModel):
+    year: int
+    title: str
+    duration_minutes: int
+    total_score: int
+    paper_pdf: str
+    answer_pdf: str
+    sections: list[ExamSectionOut]
+    source_url: str
+    questions: list[ExamQuestionOut] = Field(default_factory=list)
+
+
 # ========== 认证相关 Schema ==========
 
 

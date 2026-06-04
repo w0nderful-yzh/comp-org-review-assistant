@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     ai_request_timeout: float = 45.0
     ai_enabled: bool = True
     courseware_pdf_dir: Path = _ROOT / "materials" / "courseware-pdfs"
+    exam_paper_dir: Path = _ROOT / "materials" / "exam-papers"
 
     # JWT 认证配置
     secret_key: str = "change-me-in-production"

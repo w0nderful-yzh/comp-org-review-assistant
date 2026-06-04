@@ -1,0 +1,37 @@
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - img [ref=e9]
+      - heading "COMPORG" [level=1] [ref=e14]
+      - paragraph [ref=e15]: // 计算机组成原理 · 复习助手
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: "> STUDENT_ID"
+        - generic [ref=e19]:
+          - generic [ref=e20]: 0x
+          - textbox "24050823" [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]: "> PASSWORD"
+        - generic [ref=e24]:
+          - generic [ref=e25]: "**"
+          - textbox "••••••" [ref=e26]
+      - button "LOGIN →" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: LOGIN
+        - generic [ref=e29]: →
+    - generic [ref=e30]:
+      - generic [ref=e31]: $
+      - generic [ref=e32]: 没有账号？
+      - button "register --new" [ref=e33] [cursor=pointer]
+  - generic:
+    - generic: "10111010111110100010"
+    - generic: "11101101111011100011"
+    - generic: "00101110000110011101"
+    - generic: "11110001110010101111"
+    - generic: "00011010001100001001"
+    - generic: "00000111010111010100"
+    - generic: "10011110110001011110"
+    - generic: "00101001010000100011"
+    - generic: "01000101001110100011"
+    - generic: "11101110010010001000"
+    - generic: "10111101010010010110"
+    - generic: "01000001110010100000"

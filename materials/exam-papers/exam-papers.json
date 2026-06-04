@@ -1,0 +1,106 @@
+{
+  "source": {
+    "name": "HDU-Course/HDU-FinalExamPaper",
+    "url": "https://github.com/HDU-Course/HDU-FinalExamPaper/tree/main/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BB%84%E6%88%90%E5%8E%9F%E7%90%86/2017-2023%E6%9C%9F%E6%9C%AB%E8%80%83%E8%AF%95%E8%AF%95%E5%8D%B7%E5%8F%8A%E7%AD%94%E6%A1%88%EF%BC%88%E5%9B%BE%E7%89%87%2BPDF%EF%BC%89/PDF"
+  },
+  "papers": [
+    {
+      "year": 2023,
+      "title": "2023 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "23卷子.pdf",
+      "answer_pdf": "23-ans.pdf",
+      "sections": [
+        { "id": "analysis", "title": "一、计算分析", "score": 15, "slots": ["1", "2", "3"] },
+        { "id": "memory", "title": "二、存储器设计", "score": 23, "slots": ["1", "2", "3"] },
+        { "id": "instruction", "title": "三、指令系统设计", "score": 20, "slots": ["1", "2"] },
+        { "id": "control", "title": "四、CPU 与控制器综合", "score": 20, "slots": ["1", "2"] },
+        { "id": "system", "title": "五、I/O 系统", "score": 5, "slots": ["1"] },
+        { "id": "model", "title": "六、模型机设计", "score": 17, "slots": ["1", "2"] }
+      ]
+    },
+    {
+      "year": 2022,
+      "title": "2022 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "22-卷子.pdf",
+      "answer_pdf": "22ans.pdf",
+      "sections": [
+        { "id": "analysis", "title": "一、计算分析", "score": 15, "slots": ["1", "2", "3"] },
+        { "id": "memory", "title": "二、存储器设计", "score": 23, "slots": ["1", "2"] },
+        { "id": "instruction", "title": "三、指令系统设计", "score": 20, "slots": ["1", "2"] },
+        { "id": "control", "title": "四、控制器设计", "score": 20, "slots": ["1", "2", "3"] },
+        { "id": "system", "title": "五、I/O 系统", "score": 5, "slots": ["1", "2"] },
+        { "id": "model", "title": "六、模型机设计", "score": 17, "slots": ["1", "2"] }
+      ]
+    },
+    {
+      "year": 2021,
+      "title": "2021 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "21-卷子.pdf",
+      "answer_pdf": "21-ans.pdf",
+      "sections": [
+        { "id": "analysis", "title": "一、分析计算", "score": 18, "slots": ["1", "2", "3"] },
+        { "id": "memory", "title": "二、存储器设计", "score": 23, "slots": ["1"] },
+        { "id": "instruction", "title": "三、指令系统设计", "score": 18, "slots": ["1"] },
+        { "id": "control", "title": "四、控制器设计", "score": 16, "slots": ["1"] },
+        { "id": "system", "title": "五、I/O 系统", "score": 4, "slots": ["1"] },
+        { "id": "model", "title": "六、模型机设计", "score": 21, "slots": ["1", "2"] }
+      ]
+    },
+    {
+      "year": 2020,
+      "title": "2020 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "20-卷子.pdf",
+      "answer_pdf": "20-ans.pdf",
+      "sections": [
+        { "id": "part1", "title": "一、8 位模型机综合", "score": 55, "slots": ["1", "2", "3", "4", "5", "6", "7"] },
+        { "id": "part2", "title": "二、MIPS 与 DRAM 综合", "score": 45, "slots": ["1", "2", "3", "4"] }
+      ]
+    },
+    {
+      "year": 2019,
+      "title": "2019 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "19-卷子.pdf",
+      "answer_pdf": "19-ans.pdf",
+      "sections": [
+        { "id": "part1", "title": "一、综合题", "score": 38, "slots": ["1", "2", "3"] },
+        { "id": "part2", "title": "二、Cache 与指令系统", "score": 34, "slots": ["1", "2", "3", "4"] },
+        { "id": "part3", "title": "三、微程序控制器", "score": 12, "slots": ["1", "2"] },
+        { "id": "part4", "title": "四、MIPS 单周期 CPU", "score": 16, "slots": ["1", "2", "3", "4", "5"] }
+      ]
+    },
+    {
+      "year": 2018,
+      "title": "2018 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "18-卷子.pdf",
+      "answer_pdf": "18-ans.pdf",
+      "sections": [
+        { "id": "part1", "title": "一、8 位模型机综合", "score": 58, "slots": ["1", "2", "3", "4", "5", "6"] },
+        { "id": "part2", "title": "二、MIPS 与存储器综合", "score": 42, "slots": ["7", "8", "9", "10", "11", "12"] }
+      ]
+    },
+    {
+      "year": 2017,
+      "title": "2017 年计算机组成原理期末真题",
+      "duration_minutes": 120,
+      "total_score": 100,
+      "paper_pdf": "17-卷子.pdf",
+      "answer_pdf": "17-ans.pdf",
+      "sections": [
+        { "id": "part1", "title": "一、单总线模型机综合", "score": 51, "slots": ["1", "2", "3", "4", "5", "6", "7", "8"] },
+        { "id": "part2", "title": "二、MIPS 与存储系统综合", "score": 49, "slots": ["9", "10", "11", "12", "13", "14", "15", "16"] }
+      ]
+    }
+  ]
+}

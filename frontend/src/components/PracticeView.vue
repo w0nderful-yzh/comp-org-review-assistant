@@ -1773,7 +1773,14 @@ defineExpose({ startWrongPractice, selectedChapterId });
 .primary-button {
   background: var(--teal);
   color: white;
+  -webkit-text-fill-color: white;
   border: none;
+}
+
+.primary-button span,
+.primary-button svg {
+  color: white;
+  -webkit-text-fill-color: white;
 }
 
 .primary-button:hover {
@@ -1783,7 +1790,14 @@ defineExpose({ startWrongPractice, selectedChapterId });
 .secondary-button {
   background: transparent;
   color: var(--teal);
+  -webkit-text-fill-color: var(--teal);
   border: 1px solid var(--teal);
+}
+
+.secondary-button span,
+.secondary-button svg {
+  color: var(--teal);
+  -webkit-text-fill-color: var(--teal);
 }
 
 .secondary-button:hover {

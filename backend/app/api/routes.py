@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import random
 from datetime import datetime, timezone
 from typing import Union
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -24,6 +26,7 @@ from app.schemas.api import (
     AnswerResult,
     ChapterOut,
     ChapterStatistics,
+    ExamPaperOut,
     KnowledgeChunkOut,
     KnowledgePointOut,
     KnowledgeSearchOut,
@@ -200,6 +203,62 @@ def knowledge_chunk_out(chunk: KnowledgeChunk) -> KnowledgeChunkOut:
         source_file=chunk.source_file,
         source_page=chunk.source_page,
     )
+
+
+def load_exam_manifest() -> dict:
+    manifest_path = get_settings().exam_paper_dir / "exam-papers.json"
+    if not manifest_path.is_file():
+        raise HTTPException(status_code=404, detail="Exam paper manifest not found")
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def exam_paper_out(row: dict, source_url: str) -> ExamPaperOut:
+    questions_path = get_settings().exam_paper_dir / "structured" / f"{row['year']}.json"
+    questions = []
+    if questions_path.is_file():
+        structured = json.loads(questions_path.read_text(encoding="utf-8"))
+        questions = [
+            attach_exam_source_image_urls(row["year"], question)
+            for question in structured.get("questions", [])
+        ]
+    return ExamPaperOut(
+        year=row["year"],
+        title=row["title"],
+        duration_minutes=row["duration_minutes"],
+        total_score=row["total_score"],
+        paper_pdf=row["paper_pdf"],
+        answer_pdf=row["answer_pdf"],
+        sections=row["sections"],
+        source_url=source_url,
+        questions=questions,
+    )
+
+
+def attach_exam_source_image_urls(year: int, question: dict) -> dict:
+    images_dir = get_settings().exam_paper_dir / "images" / str(year)
+    source_images = []
+    for index, image in enumerate(question.get("source_images", []), start=1):
+        filename = str(image.get("filename", ""))
+        if not filename or "/" in filename or "\\" in filename:
+            continue
+        image_path = images_dir / filename
+        if not image_path.is_file():
+            continue
+        source_images.append({
+            "label": image.get("label") or f"原卷图页 {index}",
+            "filename": filename,
+            "url": f"/api/exam-papers/{year}/images/{quote(filename)}",
+        })
+    return {**question, "source_images": source_images}
+
+
+def get_exam_paper_row(year: int) -> tuple[dict, str]:
+    manifest = load_exam_manifest()
+    source_url = manifest.get("source", {}).get("url", "")
+    for row in manifest.get("papers", []):
+        if row.get("year") == year:
+            return row, source_url
+    raise HTTPException(status_code=404, detail="Exam paper not found")
 
 
 def load_feedback_map(db: Session, question_ids: list[int], user_id: str) -> dict[int, dict]:
@@ -516,6 +575,58 @@ def search_knowledge(
         .limit(limit)
     ).all()
     return KnowledgeSearchOut(items=[knowledge_chunk_out(chunk) for chunk in chunks], total=total)
+
+
+@router.get("/exam-papers", response_model=list[ExamPaperOut])
+def list_exam_papers() -> list[ExamPaperOut]:
+    manifest = load_exam_manifest()
+    source_url = manifest.get("source", {}).get("url", "")
+    papers = sorted(manifest.get("papers", []), key=lambda item: item["year"], reverse=True)
+    return [exam_paper_out(row, source_url) for row in papers]
+
+
+@router.get("/exam-papers/{year}", response_model=ExamPaperOut)
+def get_exam_paper(year: int) -> ExamPaperOut:
+    row, source_url = get_exam_paper_row(year)
+    return exam_paper_out(row, source_url)
+
+
+@router.get("/exam-papers/{year}/{kind}-pdf")
+def get_exam_paper_pdf(
+    year: int,
+    kind: str,
+    download: bool = False,
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    if kind not in {"paper", "answer"}:
+        raise HTTPException(status_code=404, detail="Exam PDF not found")
+    row, _ = get_exam_paper_row(year)
+    filename = row["paper_pdf"] if kind == "paper" else row["answer_pdf"]
+    pdf_path = get_settings().exam_paper_dir / "pdf" / filename
+    if not pdf_path.is_file():
+        raise HTTPException(status_code=404, detail="Exam PDF not found")
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+        content_disposition_type="attachment" if download else "inline",
+    )
+
+
+@router.get("/exam-papers/{year}/images/{filename:path}")
+def get_exam_paper_image(
+    year: int,
+    filename: str,
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    get_exam_paper_row(year)
+    if "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=404, detail="Exam image not found")
+    image_path = get_settings().exam_paper_dir / "images" / str(year) / filename
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="Exam image not found")
+    media_type = "image/jpeg" if image_path.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+    return FileResponse(image_path, media_type=media_type)
 
 
 @router.get("/chapters/{chapter_id}/courseware-pdf")

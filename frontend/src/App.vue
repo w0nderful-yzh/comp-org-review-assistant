@@ -2,21 +2,39 @@
   <div v-if="!isAuthenticated" class="auth-wrapper">
     <LoginView />
   </div>
-  <main v-else class="app-shell">
+  <main v-else class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <GuideModal v-if="showGuide" @close="showGuide = false" />
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">组</div>
-        <div>
-          <h1>计算机组成原理复习助手</h1>
-          <p>{{ user?.nickname || user?.student_id || "学习中" }}</p>
+        <div class="brand-main">
+          <div class="brand-mark">组</div>
+          <div class="brand-copy">
+            <h1>计算机组成原理复习助手</h1>
+            <p>{{ user?.nickname || user?.student_id || "学习中" }}</p>
+          </div>
         </div>
+        <button class="sidebar-toggle" :title="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" @click="toggleSidebar">
+          <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
+          <PanelLeftClose v-else :size="18" />
+        </button>
       </div>
+
+      <section class="sidebar-status">
+        <div>
+          <span>Review Console</span>
+          <h1>复习控制台</h1>
+        </div>
+        <b>{{ user?.nickname || user?.student_id || "学习中" }}</b>
+      </section>
 
       <nav class="nav-list" aria-label="主导航">
         <button :class="{ active: activeView === 'practice' }" @click="switchView('practice')">
           <BookOpen :size="18" />
           <span>章节练习</span>
+        </button>
+        <button :class="{ active: activeView === 'exam' }" @click="switchView('exam')">
+          <ClipboardCheck :size="18" />
+          <span>真题模拟</span>
         </button>
         <button :class="{ active: activeView === 'wrong' }" @click="switchView('wrong')">
           <RotateCcw :size="18" />
@@ -70,6 +88,7 @@
         @refresh="handleRefresh"
         @mode-change="handleModeChange"
       />
+      <ExamMockView v-else-if="activeView === 'exam'" ref="examRef" />
       <WrongQuestionsView
         v-else-if="activeView === 'wrong'"
         ref="wrongRef"
@@ -98,8 +117,11 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   FileText,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   RotateCcw,
 } from "@lucide/vue";
@@ -107,6 +129,7 @@ import { useAuth } from "./composables/useAuth";
 import { useSharedState } from "./composables/useSharedState";
 import LoginView from "./components/LoginView.vue";
 import GuideModal from "./components/GuideModal.vue";
+import ExamMockView from "./components/ExamMockView.vue";
 import PracticeView from "./components/PracticeView.vue";
 import WrongQuestionsView from "./components/WrongQuestionsView.vue";
 import StatsView from "./components/StatsView.vue";
@@ -115,18 +138,21 @@ import KnowledgeView from "./components/KnowledgeView.vue";
 const { isAuthenticated, user, logout, fetchUser } = useAuth();
 const { chapters, overview, refreshAll, percent } = useSharedState();
 
-const activeView = ref<"practice" | "wrong" | "stats" | "knowledge">("practice");
+const activeView = ref<"practice" | "exam" | "wrong" | "stats" | "knowledge">("practice");
 const practiceMode = ref<string>("chapter");
 const error = ref("");
 const showGuide = ref(false);
+const sidebarCollapsed = ref(localStorage.getItem("comp-org-sidebar-collapsed") === "true");
 
 const practiceRef = ref<InstanceType<typeof PracticeView> | null>(null);
+const examRef = ref<InstanceType<typeof ExamMockView> | null>(null);
 const wrongRef = ref<InstanceType<typeof WrongQuestionsView> | null>(null);
 const statsRef = ref<InstanceType<typeof StatsView> | null>(null);
 const knowledgeRef = ref<InstanceType<typeof KnowledgeView> | null>(null);
 
 const viewTitle = computed(() => {
   if (activeView.value === "wrong") return "错题本";
+  if (activeView.value === "exam") return "真题模拟";
   if (activeView.value === "stats") return "学习统计";
   if (activeView.value === "knowledge") return "课程知识库";
   if (practiceMode.value === "wrong_questions") return "错题重练";
@@ -157,12 +183,14 @@ async function switchView(view: typeof activeView.value) {
   error.value = "";
   await nextTick();
   if (view === "wrong") wrongRef.value?.load();
+  else if (view === "exam") examRef.value?.load();
   else if (view === "stats") statsRef.value?.load();
   else if (view === "knowledge") knowledgeRef.value?.load();
 }
 
 async function refreshCurrent() {
   if (activeView.value === "wrong") wrongRef.value?.load();
+  else if (activeView.value === "exam") examRef.value?.load();
   else if (activeView.value === "stats") statsRef.value?.load();
   else if (activeView.value === "knowledge") knowledgeRef.value?.load();
   else await refreshAll();
@@ -170,6 +198,11 @@ async function refreshCurrent() {
 
 function handleLogout() {
   logout();
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+  localStorage.setItem("comp-org-sidebar-collapsed", String(sidebarCollapsed.value));
 }
 
 onMounted(async () => {
@@ -204,23 +237,23 @@ watch(isAuthenticated, async (newValue) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.8rem;
-  margin: 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.5);
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 0.8rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  color: rgb(246 243 234 / 76%);
+  background: rgb(255 255 255 / 5%);
   cursor: pointer;
-  font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  font-weight: 800;
   transition: all 0.2s;
 }
 
 .btn-logout:hover {
-  background: rgba(0, 255, 136, 0.08);
-  border-color: rgba(0, 255, 136, 0.2);
-  color: #00ff88;
+  color: #f0c96a;
+  border-color: rgb(240 201 106 / 42%);
+  background: rgb(240 201 106 / 10%);
 }
 
 .app-footer {

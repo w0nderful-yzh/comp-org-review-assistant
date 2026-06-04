@@ -1,0 +1,397 @@
+{
+  "year": 2018,
+  "questions": [
+    {
+      "id": "part1-1",
+      "section_id": "part1",
+      "number": "一、1",
+      "title": "浮点数规格化与 X-Y",
+      "score": 12,
+      "stem": "某 8 位模型机另有浮点运算部件。浮点格式：数符 1 位、阶符 1 位、阶码 7 位、尾数 7 位；阶码用移码，尾数用补码。已知 X=15/64，Y 的规格化浮点表示为 C2BBH。",
+      "sub_questions": [
+        {
+          "id": "part1-1-1",
+          "label": "1）",
+          "prompt": "使用规格化浮点数表示数据有什么优点？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-2",
+          "label": "2）",
+          "prompt": "写出 X 的规格化浮点数表示形式。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-3",
+          "label": "3）",
+          "prompt": "求 Y 的二进制真值。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-4",
+          "label": "4）",
+          "prompt": "求 X-Y 浮点数 [X-Y]浮（采用 0 舍 1 入法，列出计算步骤）。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-2",
+      "section_id": "part1",
+      "number": "一、2",
+      "title": "补码加减法器设计",
+      "score": 6,
+      "stem": "使用二进制并行加法器和其他组合逻辑电路，设计一个补码加减法器。",
+      "sub_questions": [
+        {
+          "id": "part1-2-1",
+          "label": "作答",
+          "prompt": "画出逻辑框图（简图），说明信号功能和工作原理。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-3",
+      "section_id": "part1",
+      "number": "一、3",
+      "title": "双字指令程序执行分析",
+      "score": 14,
+      "stem": "模型机双字指令格式：OP(4)、MOD(2)、RD(2)，第二字为地址/数据/偏移量/端口号；单字指令为第一字。除 HALT 和 INC 为单字指令外，其他为双字指令。给出 MOV/SUB/INC/IN/ADD/JMP/HALT 编码、MOD、RD 表和内存表。",
+      "sub_questions": [
+        {
+          "id": "part1-3-1",
+          "label": "1）",
+          "prompt": "若 PC=20H，SI=10H，从 L0 开始执行，请填写前三条指令的助记符、寻址方式、源操作数、执行结果、R1 和 FR。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-2",
+          "label": "2）",
+          "prompt": "写出 INC R2 的机器码。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-3",
+          "label": "3）",
+          "prompt": "写出 JMP L1 第一个字地址，以及相对寻址的 8 位偏移量。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "part1-4",
+      "section_id": "part1",
+      "number": "一、4",
+      "title": "微程序控制器与指令流程",
+      "score": 12,
+      "stem": "模型机采用微程序控制器。图 2 给出某条指令执行流程：PC→MAR,PC+1；MEM→IR,IDC；PC→MAR,PC+1；MEM→LA；DR→LB；LA⊕LB→DR。",
+      "sub_questions": [
+        {
+          "id": "part1-4-1",
+          "label": "1）",
+          "prompt": "写出该条指令的功能和操作数寻址方式。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-4-2",
+          "label": "2）",
+          "prompt": "写出图 2 中标注 ①、②、③ 的 3 条微指令必须发送的微操作控制信号。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-4-3",
+          "label": "3）",
+          "prompt": "若控制字段直接控制，下址字段 8 位，微程序分支条件 3 种且采用直接编译法，设计微指令格式并计算控制存储器容量。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-5",
+      "section_id": "part1",
+      "number": "一、5",
+      "title": "主存地址划分与 Cache 组成",
+      "score": 10,
+      "stem": "模型机升级后主存容量 1MB，按字节编址；Cache 容量 8KB，每块 8B，4 路组相联。",
+      "sub_questions": [
+        {
+          "id": "part1-5-1",
+          "label": "1）",
+          "prompt": "写出访问 Cache 时主存地址格式划分。主存地址 48FBDH 映射到 Cache 哪一组？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-5-2",
+          "label": "2）",
+          "prompt": "比较 DRAM 和 SRAM，并结合 Cache 特点说明为什么 Cache 一般采用 SRAM 构成。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "3.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-6",
+      "section_id": "part1",
+      "number": "一、6",
+      "title": "DRAM 刷新周期",
+      "score": 4,
+      "stem": "数据存储器容量扩展为 1M×8 位，由 128 个 64K×1 位 DRAM 芯片（芯片内 4 个 128×128 结构）构成，读/写周期 100ns，刷新间隔 2ms。",
+      "sub_questions": [
+        {
+          "id": "part1-6-1",
+          "label": "作答",
+          "prompt": "采用集中刷新方式的刷新周期是多少？采用异步刷新方式的刷新信号周期是多少？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "3.png",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "part2-7",
+      "section_id": "part2",
+      "number": "二、7",
+      "title": "IEEE754 与定点移位",
+      "score": 6,
+      "stem": "MIPS 单周期模型机相关。IEEE754 单精度浮点数阶码 8 位，127 移码；尾数 24 位，原码表示，含隐藏位。",
+      "sub_questions": [
+        {
+          "id": "part2-7-1",
+          "label": "1）",
+          "prompt": "若 32 位浮点寄存器 FR1 中 X=-0.25，写出 FR1 内容（16 进制）。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-7-2",
+          "label": "2）",
+          "prompt": "FR2=C30FC000H，若它是 IEEE754 单精度浮点数，求十进制真值；若是补码定点小数，写出算术右移 1 位和算术左移 1 位后的 16 进制编码。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-8",
+      "section_id": "part2",
+      "number": "二、8",
+      "title": "哈佛结构与冯·诺依曼结构",
+      "score": 3,
+      "stem": "MIPS 模型机使用两个存储器。",
+      "sub_questions": [
+        {
+          "id": "part2-8-1",
+          "label": "作答",
+          "prompt": "说明该模型机为何使用两个存储器，写出结构名称，并说明它和冯·诺依曼体系结构的不同。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-9",
+      "section_id": "part2",
+      "number": "二、9",
+      "title": "微程序控制与硬布线控制",
+      "score": 5,
+      "stem": "图 1 使用微程序控制器，图 3 使用硬布线控制。",
+      "sub_questions": [
+        {
+          "id": "part2-9-1",
+          "label": "作答",
+          "prompt": "两种控制器如何划分？各自优点是什么？",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-10",
+      "section_id": "part2",
+      "number": "二、10",
+      "title": "sll 指令执行能力分析",
+      "score": 5,
+      "stem": "分析图 3 所示 MIPS 模型机结构能否实现 sll 指令：sll rd,rt,shamt；逻辑左移 (rt << shamt) → rd。",
+      "sub_questions": [
+        {
+          "id": "part2-10-1",
+          "label": "作答",
+          "prompt": "如能实现，描述执行过程；如不能，需要添加什么部件或功能？",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-11",
+      "section_id": "part2",
+      "number": "二、11",
+      "title": "MIPS 循环程序与控制信号",
+      "score": 11,
+      "stem": "给定 while(A[i] == k) i+=1; 对应的 MIPS 汇编程序和表 5 机器代码。寄存器 $s0、$s1、$t0、$t1、$t3 等用于变量和数组地址。",
+      "sub_questions": [
+        {
+          "id": "part2-11-1",
+          "label": "1）",
+          "prompt": "根据表 5，求 rs、rt、offset、address，并判断数组 A 中每个元素位数。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-11-2",
+          "label": "2）",
+          "prompt": "写出表 6 中各指令的数据通路对应控制信号。无关信号填“-”。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-12",
+      "section_id": "part2",
+      "number": "二、12",
+      "title": "最高端数据存储器 SRAM 扩展",
+      "score": 12,
+      "stem": "MIPS 单周期 CPU 外接数据存储器，容量 32M×32 位，位于存储器空间最高端。CPU 地址线 32 位、数据线 32 位；控制信号 MREQ# 低有效，Mem_Write 高电平写。用 8M×16 位 SRAM 构成。",
+      "sub_questions": [
+        {
+          "id": "part2-12-1",
+          "label": "1）",
+          "prompt": "写出数据存储器地址范围。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-12-2",
+          "label": "2）",
+          "prompt": "分析各组 SRAM 芯片的地址范围。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-12-3",
+          "label": "3）",
+          "prompt": "设计地址译码电路，并画出 CPU 与所选芯片连接图，SRAM 片内 WE 低电平写有效。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    }
+  ]
+}

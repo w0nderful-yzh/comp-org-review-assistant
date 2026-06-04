@@ -1,0 +1,423 @@
+{
+  "year": 2020,
+  "questions": [
+    {
+      "id": "part1-1",
+      "section_id": "part1",
+      "number": "一、1",
+      "title": "8 位模型机控制器与微指令",
+      "score": 10,
+      "stem": "图 1 是某 8 位模型机结构框图，IR、PC、MEM、AR、R0-R3、ALU 等部件及控制信号已给出。图 2 给出某指令执行流程。",
+      "sub_questions": [
+        {
+          "id": "part1-1-1",
+          "label": "1）",
+          "prompt": "图 1 中哪些部件属于控制器部分？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-2",
+          "label": "2）",
+          "prompt": "若微指令由控制字段、判别测试字段和下址字段组成，控制字段直接控制，判别测试字段直接编译，控存 256 个地址单元，求微指令长度和下址字段位数。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-3",
+          "label": "3）",
+          "prompt": "图 2 中的指令是什么指令？采用什么寻址方式？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-4",
+          "label": "4）",
+          "prompt": "写出图 2 中标注 ①、② 的微指令必须发送的微操作控制信号。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-2",
+      "section_id": "part1",
+      "number": "一、2",
+      "title": "16 位浮点格式与 X+Y",
+      "score": 11,
+      "stem": "模型机另有 16 位浮点运算部件。浮点格式：数符 1 位、尾数 7 位、阶符 1 位、阶码 7 位；阶码用移码，尾数用补码。已知 X=7/32，Y 的浮点数表示为 A87FH。",
+      "sub_questions": [
+        {
+          "id": "part1-2-1",
+          "label": "1）",
+          "prompt": "规格化数表示尾数有什么优点？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-2-2",
+          "label": "2）",
+          "prompt": "写出 X 的规格化浮点数表示形式。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-2-3",
+          "label": "3）",
+          "prompt": "求 Y 的二进制真值。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-2-4",
+          "label": "4）",
+          "prompt": "求 X+Y 浮点数 [X+Y]浮，采用 0 舍 1 入法，列出计算步骤。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-3",
+      "section_id": "part1",
+      "number": "一、3-4",
+      "title": "体系结构与中断方式选择",
+      "score": 4,
+      "stem": "单选题。",
+      "sub_questions": [
+        {
+          "id": "part1-3-1",
+          "label": "3）",
+          "prompt": "从图 1 可以看出，该计算机采用的体系结构是（ ）。",
+          "score": 1,
+          "answer_type": "single_choice",
+          "options": [
+            {
+              "key": "A",
+              "text": "哈佛结构"
+            },
+            {
+              "key": "B",
+              "text": "冯·诺依曼结构"
+            },
+            {
+              "key": "C",
+              "text": "ARM 结构"
+            },
+            {
+              "key": "D",
+              "text": "MIPS 结构"
+            }
+          ]
+        },
+        {
+          "id": "part1-3-2",
+          "label": "4）",
+          "prompt": "CPU 采用程序中断方式与外设交换数据，下面说法错误的是（ ）。",
+          "score": 1,
+          "answer_type": "single_choice",
+          "options": [
+            {
+              "key": "A",
+              "text": "实时性强"
+            },
+            {
+              "key": "B",
+              "text": "CPU 与外设可并行工作"
+            },
+            {
+              "key": "C",
+              "text": "中断发生的时间可预知"
+            },
+            {
+              "key": "D",
+              "text": "支持中断控制的硬件相对复杂"
+            }
+          ]
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-5",
+      "section_id": "part1",
+      "number": "一、5",
+      "title": "扩展操作码指令格式",
+      "score": 6,
+      "stem": "指令长度为两个字节，每个操作数长度为 5 bit，采用指令操作码扩展技术，要求编写 62 条双操作数指令、63 条单操作数指令和 30 条无操作数指令。",
+      "sub_questions": [
+        {
+          "id": "part1-5-1",
+          "label": "1）",
+          "prompt": "画出双操作数、单操作数和无操作数指令格式。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-5-2",
+          "label": "2）",
+          "prompt": "写出三类指令所占编码范围。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-6",
+      "section_id": "part1",
+      "number": "一、6",
+      "title": "Cache/主存平均访问时间",
+      "score": 10,
+      "stem": "CPU 与主存之间添加 Cache，Cache 中缺失数据总能在主存中找到。Cache 访问时间 5ns，局部命中率 97%；主存访问时间 60ns。",
+      "sub_questions": [
+        {
+          "id": "part1-6-1",
+          "label": "1）",
+          "prompt": "CPU 访问 Cache/主存存储体系的平均访问时间是多少？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-6-2",
+          "label": "2）",
+          "prompt": "若 Cache 和主存采用组相联映射，画出主存地址字段及名称。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-6-3",
+          "label": "3）",
+          "prompt": "可以从哪些技术方面改进以缩短平均访问时间？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-7",
+      "section_id": "part1",
+      "number": "一、7",
+      "title": "双字指令格式与程序执行",
+      "score": 14,
+      "stem": "模型机支持双字指令：OP(4)、MOD(2)、DR(2)，第二字为地址/数据/偏移量/端口号。除 HALT 和 DEC 为单字指令外，其他均为双字指令。给出 MOV/SUB/DEC/IN/ADD/JMP/HALT 编码、寻址方式、寄存器编码及内存表。程序从 L0 开始，PC=20H，SI=11H。",
+      "sub_questions": [
+        {
+          "id": "part1-7-1",
+          "label": "1）",
+          "prompt": "填写程序执行前三条指令的助记符、寻址方式、源操作数、执行结果、R1 和 FR。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-7-2",
+          "label": "2）",
+          "prompt": "写出 DEC R3 的机器码。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-7-3",
+          "label": "3）",
+          "prompt": "写出 JMP L1 第一个字地址和相对跳转 8 位补码偏移量。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-1",
+      "section_id": "part2",
+      "number": "二、1",
+      "title": "MIPS addi 数据通路与控制信号故障",
+      "score": 12,
+      "stem": "图 3 是 32 位 MIPS 单周期模型机结构和数据通路。分析指令 addi rt,rs,imm（rs+符号扩展 imm→rt）。",
+      "sub_questions": [
+        {
+          "id": "part2-1-1",
+          "label": "1）",
+          "prompt": "如果 imm_s 信号恒为 0，该指令能否正常运行？为什么？",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-1-2",
+          "label": "2）",
+          "prompt": "若所有控制信号正常，描述该指令执行过程中除控制信号外经过的所有部件数据通路。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-2",
+      "section_id": "part2",
+      "number": "二、2",
+      "title": "int/short 类型转换",
+      "score": 7,
+      "stem": "在该系统中，变量 i=65533，sizeof(int)=4，sizeof(short)=2。执行：int i=65533; short j=(short)i; int k=j;",
+      "sub_questions": [
+        {
+          "id": "part2-2-1",
+          "label": "作答",
+          "prompt": "分析变量 i、j、k 的真值，并写出详细分析过程。",
+          "score": 7,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-3",
+      "section_id": "part2",
+      "number": "二、3",
+      "title": "MIPS 循环程序机器码分析",
+      "score": 15,
+      "stem": "高级语言循环：while(Binary[count] == Dest_Char) count += 1; 编译为 MIPS 代码，原卷给出从 loop 开始的机器码表和寄存器编号表。",
+      "sub_questions": [
+        {
+          "id": "part2-3-1",
+          "label": "1）",
+          "prompt": "该程序中哪些是 R 型指令？哪些是 I 型指令？",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-3-2",
+          "label": "2.1）",
+          "prompt": "写出寄存器 reg_3 和 reg_4 对应的寄存器名称，并说明理由。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-3-3",
+          "label": "2.2）",
+          "prompt": "编号 exit 的值是多少？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-3-4",
+          "label": "2.3）",
+          "prompt": "该 MIPS 模型机的编址单位是什么？每个数组元素 Binary[i] 占几个字节？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-4",
+      "section_id": "part2",
+      "number": "二、4",
+      "title": "DRAM 数据存储器设计",
+      "score": 11,
+      "stem": "模型机数据存储器采用 DRAM，容量 64K×16 位，由 16K×4 位 DRAM 芯片（内部 256×256）构成，存储器读/写周期 500ns。",
+      "sub_questions": [
+        {
+          "id": "part2-4-1",
+          "label": "1）",
+          "prompt": "该数据存储器存储位元共有多少个？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-2",
+          "label": "2）",
+          "prompt": "若 DRAM 采用异步刷新方式，单元刷新间隔不超过 2ms，则刷新信号周期是多少？存储器刷新一遍最少用多少时间？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-4-3",
+          "label": "3）",
+          "prompt": "需要多少个 DRAM 芯片？简述扩展方式，并写出每组 16K×16 位存储区域的地址范围。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    }
+  ]
+}

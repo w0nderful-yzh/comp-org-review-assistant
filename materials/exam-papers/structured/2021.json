@@ -1,0 +1,365 @@
+{
+  "year": 2021,
+  "questions": [
+    {
+      "id": "analysis-1",
+      "section_id": "analysis",
+      "number": "一、1",
+      "title": "C 比较函数、端序与标志位",
+      "score": 8,
+      "stem": "假设某 32 位宿主机上，用 C 语言函数 LessThan(int X,int Y) 实现两个数据比较：若 X<Y 返回 -1，否则返回 0。调用时 int w; int A=0x12345678; int B=0x87654321; w=LessThan(A,B)。",
+      "sub_questions": [
+        {
+          "id": "analysis-1-1",
+          "label": "①",
+          "prompt": "w 的值是多少？若 X、Y、A、B 被定义为 unsigned 类型，则 w 又是多少？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "analysis-1-2",
+          "label": "②",
+          "prompt": "若 p=&A，p 的值是 100；内存按字节编址、小端模式存放多字节数据，则内存 100 号单元内容是什么？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "analysis-1-3",
+          "label": "③",
+          "prompt": "计算机对 X>Y 的比较通过 X-Y 实现。请写出 A-B 的运算结果以及 CF、OF、ZF、SF 的值，列出计算过程。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "analysis-2",
+      "section_id": "analysis",
+      "number": "一、2",
+      "title": "BF16 浮点数表示",
+      "score": 4,
+      "stem": "BF16 是深度学习中应用的一种 16 位浮点数格式，它直接将 IEEE 754 的 32 位浮点数尾数小数截尾为 7 位：数符 1 位，阶码 8 位（127 的移码），尾数 7 位（原码表示、隐藏尾数整数位 1）。",
+      "sub_questions": [
+        {
+          "id": "analysis-2-1",
+          "label": "作答",
+          "prompt": "请写出 -5 的 BF16 浮点数。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "analysis-3",
+      "section_id": "analysis",
+      "number": "一、3",
+      "title": "浮点数加减运算步骤",
+      "score": 6,
+      "stem": "给出浮点数的加减运算步骤，并以下面两个浮点数 X 和 Y（阶码和尾数均为 5 位）为例展示 X+Y 的运算过程：\nX=-0.1011×2^+0001，Y=0.1110×2^-0001。",
+      "sub_questions": [
+        {
+          "id": "analysis-3-1",
+          "label": "作答",
+          "prompt": "写出 X+Y 的完整运算过程。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "memory-1",
+      "section_id": "memory",
+      "number": "二",
+      "title": "16 位模型机主存、Cache 与 SRAM 设计",
+      "score": 23,
+      "stem": "某 16 位模型计算机按字编址，地址空间 64K。",
+      "sub_questions": [
+        {
+          "id": "memory-1-1",
+          "label": "1）",
+          "prompt": "CPU 的地址位数有多少位？主存容量最大为多少字节？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-2",
+          "label": "2）",
+          "prompt": "若有 1KB Cache，行大小 16B，2 路组相联，写出 CPU 访问主存时地址划分的高位标记、Cache 组地址、块内地址位数。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-3",
+          "label": "3）",
+          "prompt": "设 Cache 初始为空，请描述 CPU 访问 2021H 单元后 Cache 发生了什么变化。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-4",
+          "label": "4）",
+          "prompt": "用 8K×8 位 SRAM 芯片构成 32K×16 位主存物理空间，需要多少片芯片？",
+          "score": 1,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-5",
+          "label": "5）",
+          "prompt": "假设 I/O 和主存统一编址，前 32K 为主存空间，后 32K 为 I/O 空间，画出 CPU 与主存连接图，标注地址和数据信号。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-6",
+          "label": "6）",
+          "prompt": "说明你设计的主存是顺序编址还是交叉编址，并说明如何变成另一种编址方式。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-1-7",
+          "label": "7）",
+          "prompt": "判断题：SRAM 常用于构成内存条；速度最快的非易失性存储器是 SRAM；虚拟存储器由存储器管理硬件和操作系统共同管理实现。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "instruction-1",
+      "section_id": "instruction",
+      "number": "三",
+      "title": "16 位计算机 X 指令系统与程序功能",
+      "score": 18,
+      "stem": "16 位计算机 X 的指令字长有单字和双字两种。单字格式：OP(7)、DR(3)、SR1(3)、SR2(3)；双字格式：OP(5)、MOD(2)、DR(3)、SR1(3)、SR2(3)，第二字为 Imme/Addr/Offset。题中给出从 4000H 开始的一段程序与机器码/数据表。",
+      "sub_questions": [
+        {
+          "id": "instruction-1-1",
+          "label": "1）",
+          "prompt": "该计算机有多少个寄存器？若双字指令有 20 条，单字指令最多有多少条？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-2",
+          "label": "2）",
+          "prompt": "选择该计算机存储器的编址方式：按字节、按字、按双字或无法判断。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-3",
+          "label": "3）",
+          "prompt": "仿照序号 1 指令，翻译序号 2 指令并写出汇编助记符。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-4",
+          "label": "4）",
+          "prompt": "分析 XOR R3,R0,[R2] 中 [R2] 的寻址方式、执行后 R3 内容；若 XOR 操作码为全零，写出其指令码。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-5",
+          "label": "5）",
+          "prompt": "写出 JNZ L 的指令码。JNZ 的 OP 为 (11100)2，采用相对寻址（MOD=11）。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-6",
+          "label": "6）",
+          "prompt": "描述这段程序的功能。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223660122.jpg",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "1724223687676.jpg",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "control-1",
+      "section_id": "control",
+      "number": "四",
+      "title": "模型计算机 X 控制器设计",
+      "score": 16,
+      "stem": "16 位模型计算机 X 的系统结构如原卷图 1，指令系统格式如第三题。取指周期 M0：MEM[PC]→IR，PC+1→PC，IDC。指令系统有 MOV DR,Imme 和 JMP offset 两条指令。",
+      "sub_questions": [
+        {
+          "id": "control-1-1",
+          "label": "1）",
+          "prompt": "请按照机器周期顺序写出 MOV 和 JMP 指令的执行过程。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "control-1-2",
+          "label": "2）",
+          "prompt": "选择一个机器周期操作，写出它发送的微操作控制信号。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "control-1-3",
+          "label": "3）",
+          "prompt": "若采用微程序控制器，控存 1K 单元；控制字段直接控制，微程序转移方式 3 种且采用译码方式；下址字段可在整个控存转移。求控制字段、转移控制字段、下址字段位数和控存容量。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223687676.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "io-1",
+      "section_id": "system",
+      "number": "五",
+      "title": "I/O 端口地址与中断隐指令",
+      "score": 4,
+      "stem": "I/O 系统。",
+      "sub_questions": [
+        {
+          "id": "io-1-1",
+          "label": "1）",
+          "prompt": "接第二题第 5 小题，请写出一个 I/O 设备端口地址，并写出另一种 I/O 端口地址编址方式。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "io-1-2",
+          "label": "2）",
+          "prompt": "中断隐指令是在中断的哪个阶段、由谁执行？（A.中断响应、硬件 B.中断请求、OS C.中断处理、软件 D.中断返回、硬件及 OS）",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223687676.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "model-arm",
+      "section_id": "model",
+      "number": "六、1",
+      "title": "ARMv8 极简 CPU 设计（选做）",
+      "score": 21,
+      "stem": "程序片段：L1: SUBIS r4,r1,ALU_imm；BL L1。需要设计一个 RISC 结构 ARMv8 CPU，支持仅包含 I 型 SUBIS 和 B 型 BL 的指令系统。机器字长、寄存器宽度均为 32 位，存储器按字节编址。",
+      "sub_questions": [
+        {
+          "id": "model-arm-1",
+          "label": "1）",
+          "prompt": "画出 CPU 结构图并标出控制信号。",
+          "score": 13,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-2",
+          "label": "2）",
+          "prompt": "画出该指令系统对应的微程序流程图和各状态发出的有效控制信号。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223687676.jpg",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "1724223695943.jpg",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "model-riscv",
+      "section_id": "model",
+      "number": "六、2",
+      "title": "RV32I 多周期 RISC-V 模型机（选做）",
+      "score": 21,
+      "stem": "一个能实现 RV32I 指令集的多周期 RISC-V 模型机，结构如原卷图 2。",
+      "sub_questions": [
+        {
+          "id": "model-riscv-1",
+          "label": "作答",
+          "prompt": "根据原卷给出的 RISC-V 模型机结构和题目要求完成设计与分析。涉及图形部分请结合原卷备用 PDF。",
+          "score": 21,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1724223695943.jpg",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    }
+  ]
+}

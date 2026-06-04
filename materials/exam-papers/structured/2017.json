@@ -1,0 +1,437 @@
+{
+  "year": 2017,
+  "questions": [
+    {
+      "id": "part1-1",
+      "section_id": "part1",
+      "number": "一、1",
+      "title": "16 位补码浮点数与尾数加法微程序",
+      "score": 12,
+      "stem": "图 1 是某单总线结构计算机。浮点数格式：阶码 8 位（含符号位）、尾数 8 位（含符号位），阶码和尾数均用补码表示，排列为阶符、阶码、数符、尾数。已知 X=-17.25，Y 的规格化浮点表示为 FE78H。",
+      "sub_questions": [
+        {
+          "id": "part1-1-1",
+          "label": "1）",
+          "prompt": "写出 X 的规格化浮点数表示形式。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-2",
+          "label": "2）",
+          "prompt": "求 Y 的二进制真值。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-3",
+          "label": "3）",
+          "prompt": "求 [X+Y]补，要求用补码计算，采用 0 舍 1 入法，列出计算步骤。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-1-4",
+          "label": "4）",
+          "prompt": "若用图 1 ALU 和相关部件完成浮点加法尾数运算，尾数在 R0/R1，和存入 R0，请用微程序流程图描述过程。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-2",
+      "section_id": "part1",
+      "number": "一、2",
+      "title": "相对跳转程序地址",
+      "score": 5,
+      "stem": "一段程序在图 1 模型机上运行，所有指令均为 2 字节，存储器按字节编址，程序装入内存低端，起始地址为 0。程序含 MOV、IN、ADD、OUT、JMP L 等指令，L 为标号。",
+      "sub_questions": [
+        {
+          "id": "part1-2-1",
+          "label": "作答",
+          "prompt": "求最后一条 JMP L 的存放地址，以及相对寻址的 8 位二进制偏移量。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-3",
+      "section_id": "part1",
+      "number": "一、3",
+      "title": "机器指令格式与执行跟踪",
+      "score": 11,
+      "stem": "模型机支持指令格式：Opcode(4)、Rd(2)、MOD(2)，第二字节 Addr/Disp/Data。除 INC 和 HALT 为 1 字节外，其他为 2 字节。给出 ADD/SUB/ADC/SBB/MOV/INC/JMP/HALT 编码、寻址方式、寄存器编码以及内存表。PC=20H，SI=10H。",
+      "sub_questions": [
+        {
+          "id": "part1-3-1",
+          "label": "1）",
+          "prompt": "指令 ADD R1,[10H] 功能为 (R1)+Mem[10H]→R1，请写出机器代码。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part1-3-2",
+          "label": "2）",
+          "prompt": "启动程序执行后，程序执行了几条指令停止？写出前 2 条指令的助记符、寻址方式、EA、操作数和执行结果。",
+          "score": 7,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-4",
+      "section_id": "part1",
+      "number": "一、4",
+      "title": "微指令字段与控存容量",
+      "score": 4,
+      "stem": "该机采用微程序控制器，共 28 种微操作命令，其中 14 个微命令采用译码方式，其余直接控制；7 个转移控制状态采用译码形式；下址字段 7 位。",
+      "sub_questions": [
+        {
+          "id": "part1-4-1",
+          "label": "作答",
+          "prompt": "求操作控制字段和判别测试字段各有几位，并给出控存容量（字数×字长）。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "1.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-5",
+      "section_id": "part1",
+      "number": "一、5",
+      "title": "控制器组成与功能",
+      "score": 5,
+      "stem": "结合图 1 所示模型机实例。",
+      "sub_questions": [
+        {
+          "id": "part1-5-1",
+          "label": "作答",
+          "prompt": "说明控制器由哪些部件组成，各部件主要功能是什么。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-6",
+      "section_id": "part1",
+      "number": "一、6",
+      "title": "Cache 命中率与地址划分",
+      "score": 6,
+      "stem": "模型机扩展主存并添加 Cache。Cache 完成存取 1700 次，主存完成 300 次；Cache 周期 10ns，主存周期 70ns。升级后主存容量 64KB，按字节编址；Cache 容量 4KB，每块 4 字节，4 路组相联。",
+      "sub_questions": [
+        {
+          "id": "part1-6-1",
+          "label": "作答",
+          "prompt": "求 Cache 命中率、平均访问时间、主存字节地址位数、标记位数、Cache 组地址位数，以及主存地址 07A8H 映射到哪一组。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-7",
+      "section_id": "part1",
+      "number": "一、7",
+      "title": "4 体交叉存储器访存时间",
+      "score": 4,
+      "stem": "主存容量 32 字，字长 64 位，存储周期 200ns，数据总线宽度 64 位，总线传送周期 50ns。采用 4 体交叉方式连续读出 21 个字且无阻塞。",
+      "sub_questions": [
+        {
+          "id": "part1-7-1",
+          "label": "作答",
+          "prompt": "求访存时间，以及相比不采用交叉方式节省的时间。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part1-8",
+      "section_id": "part1",
+      "number": "一、8",
+      "title": "汉字文本与字模码容量",
+      "score": 4,
+      "stem": "输出设备是一台打印机，采用 32×32 点阵汉字字形。需要打印 50 个汉字构成的短文。",
+      "sub_questions": [
+        {
+          "id": "part1-8-1",
+          "label": "作答",
+          "prompt": "求短文纯文本占用内存字节数；若 50 个字不重复，打印所用字模码共多少字节。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "2.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-9",
+      "section_id": "part2",
+      "number": "二、9",
+      "title": "MIPS 程序控制信号",
+      "score": 10,
+      "stem": "图 2 是 MIPS 单周期 CPU。给定程序将主存地址 10H 起始的 20 个字累加，含 add、addi、lw、beq、j、sw 等指令。",
+      "sub_questions": [
+        {
+          "id": "part2-9-1",
+          "label": "作答",
+          "prompt": "填写表 1 中指定 5 条指令（5、7、8、9、10）所发出的控制信号；无关信号填“-”。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "3.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-10",
+      "section_id": "part2",
+      "number": "二、10",
+      "title": "独立编址 I/O 指令格式",
+      "score": 4,
+      "stem": "为实现独立编址输入输出，使用 I 型指令格式实现 in 和 out，端口地址由指令低 16 位 I15-0 提供，控制信号为 IO_R 和 IO_W。",
+      "sub_questions": [
+        {
+          "id": "part2-10-1",
+          "label": "作答",
+          "prompt": "仿照 xori 指令写法，分别写出 in 和 out 指令格式和功能描述。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "3.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-11",
+      "section_id": "part2",
+      "number": "二、11",
+      "title": "IN/OUT 指令控制信号",
+      "score": 6,
+      "stem": "ALU 有 16 种功能。为实现 IN 和 OUT 指令的数据通路，译码与控制单元需设置对应控制信号。",
+      "sub_questions": [
+        {
+          "id": "part2-11-1",
+          "label": "作答",
+          "prompt": "将 in 和 out 指令的 w_r_s、imm_s、rt_imm_s、wr_data_s、ALU_OP、Write_Reg、Mem_Write、IO_R、IO_W、PC_s 填入表 3。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-12",
+      "section_id": "part2",
+      "number": "二、12",
+      "title": "MIPS CPU 与冯·诺依曼结构比较",
+      "score": 6,
+      "stem": "结合图 2 所示 MIPS CPU 结构。",
+      "sub_questions": [
+        {
+          "id": "part2-12-1",
+          "label": "作答",
+          "prompt": "说明它和冯·诺依曼体系结构有何不同，冯·诺依曼体系结构特点在其上有何体现。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-13",
+      "section_id": "part2",
+      "number": "二、13",
+      "title": "可变长度操作码分配原则",
+      "score": 3,
+      "stem": "若图 2 MIPS 机的指令操作码长度可变。",
+      "sub_questions": [
+        {
+          "id": "part2-13-1",
+          "label": "作答",
+          "prompt": "根据指令出现频度分配操作码长度的原则是什么？",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "4.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-14",
+      "section_id": "part2",
+      "number": "二、14",
+      "title": "DRAM 存储原理与特性",
+      "score": 6,
+      "stem": "图 2 数据存储器采用 DRAM 构成。",
+      "sub_questions": [
+        {
+          "id": "part2-14-1",
+          "label": "作答",
+          "prompt": "说明 DRAM 利用什么存储电荷表示 0/1；为什么需要刷新；相比 SRAM，DRAM 的速度和价格如何。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-15",
+      "section_id": "part2",
+      "number": "二、15",
+      "title": "DRAM 集中刷新时间",
+      "score": 2,
+      "stem": "数据存储器容量扩展为 64K×16 位，由 16K×1 位 DRAM 芯片（内部 128×128）构成，读/写周期 50ns，采用集中式刷新。",
+      "sub_questions": [
+        {
+          "id": "part2-15-1",
+          "label": "作答",
+          "prompt": "求存储器刷新一遍最少用时。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "part2-16",
+      "section_id": "part2",
+      "number": "二、16",
+      "title": "64M×32 位数据存储器 SRAM 扩展",
+      "score": 12,
+      "stem": "MIPS 系统数据存储器容量为 64M×32 位，位于存储器空间最低端；若由 16M×8 位 SRAM 构成。",
+      "sub_questions": [
+        {
+          "id": "part2-16-1",
+          "label": "1）",
+          "prompt": "写出数据存储器地址范围。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-16-2",
+          "label": "2）",
+          "prompt": "求所需 SRAM 芯片个数。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "part2-16-3",
+          "label": "3）",
+          "prompt": "画出 SRAM 芯片扩展成数据存储器的连接图，清晰标示地址、数据和控制信号线。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    }
+  ]
+}

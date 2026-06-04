@@ -138,6 +138,27 @@ docker exec -it comp-org-backend python scripts/batch_generate_ai.py
 
 访问 `http://服务器IP`。绑定域名并把 `.env` 中的 `PUBLIC_SITE_ADDRESS` 改成域名后，Caddy 会自动申请 HTTPS 证书。
 
+### 数据库备份与迁移
+
+如果需要将本地开发环境的题库数据（含 AI 生成题目、用户数据等）迁移到服务器：
+
+```bash
+# 1. 本地导出数据库
+./scripts/db_backup.sh export
+
+# 2. 将备份文件上传到服务器
+scp ./backups/comp_org_backup_*.sql.gz user@server:/path/to/project/
+
+# 3. 服务器上导入（先启动容器，再导入）
+docker compose -f docker-compose.prod.yml up -d
+./scripts/db_backup.sh import ./backups/comp_org_backup_*.sql.gz
+
+# 查看数据库状态
+./scripts/db_backup.sh status
+```
+
+备份包含：章节、知识点、所有题目（含 AI 题）、练习记录、错题本、用户账号、知识库。
+
 ### 环境变量说明
 
 | 变量名 | 说明 |

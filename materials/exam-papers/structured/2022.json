@@ -1,0 +1,401 @@
+{
+  "year": 2022,
+  "questions": [
+    {
+      "id": "analysis-1",
+      "section_id": "analysis",
+      "number": "一、1",
+      "title": "C 程序片段与 32 位补码比较",
+      "score": 4,
+      "stem": "某 32 位模型计算机上，有 C 语言程序片段：\nint i,a[10],b[10];\nfor (i=0;i<=10;i++)\n    if (b[i]<a[i]) b[i]=a[i]+20;\n\n假设初始 a[5]=0x7FFFFFFF，b[5]=0xFFFFFFFF。",
+      "sub_questions": [
+        {
+          "id": "analysis-1-1",
+          "label": "作答",
+          "prompt": "执行完上述 for 循环语句后，b[5] 的结果是多少？请以 16 进制表示，写出推导或计算过程。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "analysis-2",
+      "section_id": "analysis",
+      "number": "一、2",
+      "title": "b[5]-a[5] 与标志位",
+      "score": 4,
+      "stem": "if (b[i]<a[i]) 这条判断语句，在计算机中是通过 b[i]-a[i] 来实现的。",
+      "sub_questions": [
+        {
+          "id": "analysis-2-1",
+          "label": "作答",
+          "prompt": "执行 b[5]-a[5] 后，标志位 CF、OF、ZF、SF 的值是多少？",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "analysis-3",
+      "section_id": "analysis",
+      "number": "一、3",
+      "title": "16 位自定义浮点数编码与加法",
+      "score": 7,
+      "stem": "假设数组 a 和 b 的数据类型是一种 16 位长的自定义浮点数：高 6 位是含阶符在内的阶码，低 10 位是含数符在内的尾数，尾数和阶码都由补码表示。若 a[0] = -15.25，b[0] = 5/32。",
+      "sub_questions": [
+        {
+          "id": "analysis-3-1",
+          "label": "1）",
+          "prompt": "请写出 a[0] 和 b[0] 在内存中的规格化浮点数编码（以 16 进制表示）。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "analysis-3-2",
+          "label": "2）",
+          "prompt": "计算 a[0]+b[0] 的浮点数 [a[0]+b[0]]浮（采用 0 舍 1 入法，结果以 16 进制表示，列出计算步骤）。",
+          "score": 5,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "memory-1",
+      "section_id": "memory",
+      "number": "二、1",
+      "title": "2M 主存空间 SRAM 连接设计",
+      "score": 14,
+      "stem": "假设某 8 位模型计算机的地址总线为 24 位，存储器按字节编址，CPU 有 M/IO（=0 访问 I/O 设备，=1 访问主存）、R/W（=0 写操作，=1 读操作）信号。从地址 100000H 开始，设计一个 2M 空间的主存储器。可使用若干 1M×4 位 SRAM 芯片、一个 2:4 译码器芯片（带低电平使能端，译码输出为低电平）、与非门和或非门。",
+      "sub_questions": [
+        {
+          "id": "memory-1-1",
+          "label": "作答",
+          "prompt": "请分析所需芯片个数、2M 空间的地址范围，并画出与 CPU 的连接图。",
+          "score": 14,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "memory-2",
+      "section_id": "memory",
+      "number": "二、2",
+      "title": "4KB 8 路组相联指令 Cache",
+      "score": 9,
+      "stem": "为该 8 位模型计算机配备一个 4KB 的 8 路组相联指令 Cache，每行 16 个字。",
+      "sub_questions": [
+        {
+          "id": "memory-2-1",
+          "label": "1）",
+          "prompt": "请写出对主存地址字段的划分（包括各字段的名称及位数）。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "memory-2-2",
+          "label": "2）",
+          "prompt": "当 CPU 访问主存地址 104184H 时，请说明该主存地址映射到 Cache 的哪一组，并写出计算过程。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "instruction-1",
+      "section_id": "instruction",
+      "number": "三、1",
+      "title": "8 位模型机指令格式与程序执行",
+      "score": 12,
+      "stem": "某 8 位模型计算机指令格式：OP（4 位）、MOD（2 位）、RD（2 位），第二字为 ADDR/DATA/DISP。除 HALT 为单字指令外，其他指令均为双字指令。表中给出 MOV/ADD/SUB/AND/SBB/JMP/HALT 操作码，MOD=立即、直接、变址、间接，RD=R0-R3。内存地址 30H-3BH 的部分内容见原卷表 2。",
+      "sub_questions": [
+        {
+          "id": "instruction-1-1",
+          "label": "①",
+          "prompt": "指令 SUB R3,((80H)) 的功能为 R3=((80H))-R3；使用间接寻址，请写出该指令机器码第一字节和第二字节。",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "instruction-1-2",
+          "label": "②",
+          "prompt": "若 PC=34H、变址寄存器 SI=20H，启动程序执行。请填写程序执行前三条指令的助记符、源操作数寻址方式、源操作数和执行结果。",
+          "score": 10,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "5.png",
+          "label": "原卷试题图页 1"
+        },
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 2"
+        }
+      ]
+    },
+    {
+      "id": "instruction-2",
+      "section_id": "instruction",
+      "number": "三、2",
+      "title": "扩展操作码编码设计",
+      "score": 8,
+      "stem": "某机器指令长 16 位，基本操作码 4 位，每个操作数地址码长 4 位，采用扩展码技术。要求设计一个指令系统：三地址指令 14 条，两地址指令 30 条，单地址指令 20 条，零地址指令 15 条。",
+      "sub_questions": [
+        {
+          "id": "instruction-2-1",
+          "label": "作答",
+          "prompt": "请给出指令编码示意图。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "control-1",
+      "section_id": "control",
+      "number": "四、1",
+      "title": "模型机指令功能与寻址方式",
+      "score": 6,
+      "stem": "某 8 位模型机系统结构如原卷图 1。图中控制信号均为高电平有效，MAR 中地址直接送地址总线 AB，变址寄存器 SI 隐含为 R3。某条指令的执行流程如原卷图 2。",
+      "sub_questions": [
+        {
+          "id": "control-1-1",
+          "label": "作答",
+          "prompt": "写出图 2 所示指令的功能和操作数寻址方式。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "control-2",
+      "section_id": "control",
+      "number": "四、2",
+      "title": "微指令控制信号与微指令格式",
+      "score": 14,
+      "stem": "基于同一 8 位模型机结构，分析图 2 指令执行流程和微程序控制器参数。",
+      "sub_questions": [
+        {
+          "id": "control-2-1",
+          "label": "1）",
+          "prompt": "写出图 2 中标注 ①、②、③ 的 3 条微指令必须发送的微操作控制信号。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "control-2-2",
+          "label": "2）",
+          "prompt": "若控存容量为 256×32 位，控制字段对应 21 个控制信号，判别测试字段对应 5 个条件且采用编译法，后继微指令地址采用下址字段法，请设计水平型微指令格式。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "io-1",
+      "section_id": "system",
+      "number": "五",
+      "title": "DMA 与中断过程",
+      "score": 5,
+      "stem": "I/O 系统。",
+      "sub_questions": [
+        {
+          "id": "io-1-1",
+          "label": "1）",
+          "prompt": "在主机与外设交换信息的方式中，DMA 的中文名称是什么？",
+          "score": 1,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "io-1-2",
+          "label": "2）",
+          "prompt": "请写出中断过程的四个阶段。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "6.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "model-arm",
+      "section_id": "model",
+      "number": "六、1",
+      "title": "ARM 模型机设计（选做）",
+      "score": 17,
+      "stem": "某 ARM 指令在原卷图 4 所示 ARM 模型机上执行过程见图 3：条件取指；Reg[rn]→A，Reg[rm]→B，Reg[rs]→C；Second_opr=对 B 移动 imm5 位；A+Second_opr→F；S=0 时不修改标志位；F→Reg[rd]。",
+      "sub_questions": [
+        {
+          "id": "model-arm-1",
+          "label": "1）",
+          "prompt": "这条指令的功能是什么？",
+          "score": 2,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-2",
+          "label": "2）",
+          "prompt": "该指令的操作数采用什么寻址方式？",
+          "score": 1,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-3",
+          "label": "3）",
+          "prompt": "这是一条什么类型的指令？",
+          "score": 1,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-4",
+          "label": "4）",
+          "prompt": "参考图 4 写出该指令在每个 clk 周期的控制信号。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-5",
+          "label": "5）",
+          "prompt": "参考图 3 指令执行过程，结合图 4，画出 BX r0 指令流程图。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-arm-6",
+          "label": "6）",
+          "prompt": "对比原卷图 4 和图 5，简要叙述 ARM CPU 按条件取指令的过程。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "7.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    },
+    {
+      "id": "model-riscv",
+      "section_id": "model",
+      "number": "六、2",
+      "title": "RISC-V 多周期模型机（选做）",
+      "score": 17,
+      "stem": "一个能实现 RV32I 指令子集的多周期 RISC-V 模型机，结构如原卷图 4。",
+      "sub_questions": [
+        {
+          "id": "model-riscv-1",
+          "label": "1）",
+          "prompt": "根据给定执行过程 M0~M3，写出指令功能、助记符、指令格式和寻址方式。",
+          "score": 6,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-riscv-2",
+          "label": "2）",
+          "prompt": "写出 M0 机器周期发送的控制信号。",
+          "score": 4,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-riscv-3",
+          "label": "3）",
+          "prompt": "分析 ori rd,rs1,imm 和 sw rs2,imm(rs1) 的格式与执行过程，按机器周期填写操作。",
+          "score": 8,
+          "answer_type": "text",
+          "options": []
+        },
+        {
+          "id": "model-riscv-4",
+          "label": "4）",
+          "prompt": "分析 jal、jalr、beq、bne 功能，至少说出三种实现无条件跳转的方法。",
+          "score": 3,
+          "answer_type": "text",
+          "options": []
+        }
+      ],
+      "source_images": [
+        {
+          "filename": "8.png",
+          "label": "原卷试题图页 1"
+        }
+      ]
+    }
+  ]
+}

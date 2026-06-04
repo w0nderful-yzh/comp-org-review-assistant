@@ -5,7 +5,8 @@ WORKDIR /app
 
 # 安装依赖
 COPY package*.json ./
-RUN npm ci
+ARG NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+RUN npm ci --registry=${NPM_CONFIG_REGISTRY}
 
 # 构建应用
 COPY . .

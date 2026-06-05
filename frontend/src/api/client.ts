@@ -238,6 +238,57 @@ export type ExamPaper = {
   questions: ExamQuestion[];
 };
 
+export type LabExamSection = {
+  id: string;
+  title: string;
+  score: number;
+  description: string | null;
+};
+
+export type LabExamQuestion = {
+  id: string;
+  section_id: string;
+  number: string;
+  title: string;
+  score: number;
+  stem: string;
+  answer_type: "single_choice" | "text";
+  options: Array<{ key: string; text: string }>;
+  answer: string | null;
+  reference_answer: string | null;
+  explanation: string | null;
+};
+
+export type LabExamPaper = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  duration_minutes: number;
+  total_score: number;
+  source_file: string | null;
+  format_reference: string | null;
+  generated: boolean;
+  sections: LabExamSection[];
+  questions: LabExamQuestion[];
+};
+
+export type LabExamGeneration = {
+  id: number;
+  status: "pending" | "running" | "completed" | "failed";
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  paper: LabExamPaper | null;
+};
+
+export type LabExamDashboard = {
+  static_paper: LabExamPaper;
+  latest_generation: LabExamGeneration | null;
+  daily_remaining: number;
+  ai_enabled: boolean;
+};
+
 export type FeedbackType = "helpful" | "not_helpful" | "flag";
 export type FlagReason = "answer_error" | "unclear_stem" | "ambiguous_options" | "out_of_scope" | "duplicate" | "unclear_explanation";
 
@@ -308,6 +359,14 @@ export const api = {
   examPapers: () => request<ExamPaper[]>("/api/exam-papers"),
   examPaperPdf: (year: number, kind: "paper" | "answer", download = false) =>
     requestBlob(`/api/exam-papers/${year}/${kind}-pdf${download ? "?download=true" : ""}`),
+  labExams: () => request<LabExamDashboard>("/api/lab-exams"),
+  createLabExamGeneration: () =>
+    request<LabExamGeneration>("/api/lab-exams/generations", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  labExamGeneration: (generationId: number) =>
+    request<LabExamGeneration>(`/api/lab-exams/generations/${generationId}`),
   searchKnowledge: (params: { q: string; chapter_id?: number | null; limit?: number }) => {
     const search = new URLSearchParams();
     search.set("q", params.q);

@@ -70,7 +70,11 @@
         <div class="toolbar-actions">
           <button class="secondary-button" :disabled="!activePaper" @click="openPaperPdf">
             <FileText :size="16" />
-            <span>原卷备用</span>
+            <span>原卷查看</span>
+          </button>
+          <button class="secondary-button" :disabled="!activePaper" @click="openAnswerPdf">
+            <FileSearch :size="16" />
+            <span>试题答案</span>
           </button>
           <button class="secondary-button" :disabled="!activePaper" @click="downloadCurrentPaper">
             <Download :size="16" />
@@ -144,13 +148,18 @@
                   </figure>
                   <p class="image-res-hint">
                     <Info :size="13" />
-                    示意图为网页版，点击可放大。如需更清晰原图，请使用右上角
-                    <strong>原卷备用</strong> 或 <strong>下载试卷</strong>。
+                    示意图预览正在修复中，可能显示不完整。涉及图示的题目请优先使用右上角
+                    <strong>原卷查看</strong> 或 <strong>下载试卷</strong>。
                   </p>
                 </div>
 
                 <div class="sub-question-list">
-                  <section v-for="sub in question.sub_questions" :key="sub.id" class="sub-question">
+                  <section
+                    v-for="sub in question.sub_questions"
+                    :id="`exam-sub-${sub.id}`"
+                    :key="sub.id"
+                    class="sub-question"
+                  >
                     <div class="sub-prompt">
                       <strong>{{ sub.label }}</strong>
                       <p>{{ sub.prompt }}</p>
@@ -172,6 +181,7 @@
 
                     <textarea
                       v-else
+                      :id="`exam-answer-${sub.id}`"
                       v-model="answers[sub.id]"
                       :disabled="submitted"
                       class="inline-answer"
@@ -190,6 +200,7 @@
             <p class="eyebrow">Session</p>
             <h3>{{ statusTitle }}</h3>
             <span>{{ answeredCount }} / {{ totalAnswerSlots }} 小题已填写</span>
+            <small v-if="draftSavedText" class="draft-status">{{ draftSavedText }}</small>
             <div class="progress-track">
               <div class="progress-fill" :style="{ width: progressPercent }"></div>
             </div>
@@ -201,6 +212,19 @@
               <button v-if="running" class="secondary-button" @click="pauseExam">
                 <Pause :size="17" />
                 <span>暂停</span>
+              </button>
+              <button
+                v-if="hasStructuredQuestions && !submitted"
+                class="secondary-button"
+                :disabled="answeredCount >= totalAnswerSlots"
+                @click="jumpToNextUnanswered"
+              >
+                <ChevronRight :size="17" />
+                <span>下一未答</span>
+              </button>
+              <button v-if="!submitted" class="secondary-button" :disabled="!activePaper" @click="saveAndExit">
+                <Save :size="17" />
+                <span>暂存并退出</span>
               </button>
               <button class="secondary-button" :disabled="!activePaper" @click="resetExam">
                 <RotateCcw :size="17" />
@@ -222,9 +246,9 @@
           </section>
 
           <section class="exam-panel submit-panel">
-            <button v-if="!submitted" class="submit-button wide" :disabled="!activePaper || !hasStarted" @click="submitExam">
+            <button v-if="!submitted" class="submit-button wide" :disabled="!activePaper || !hasStarted" @click="submitExam()">
               <CheckCircle2 :size="18" />
-              <span>交卷并查看答案</span>
+              <span>{{ running || paused ? "提前交卷并自评" : "交卷并自评" }}</span>
             </button>
             <template v-else>
               <div class="score-box">
@@ -249,18 +273,43 @@
     </template>
 
     <!-- ===== PDF MODAL ===== -->
-    <div v-if="paperUrl" class="pdf-modal" role="dialog" aria-modal="true">
+    <div v-if="pdfModalUrl" class="pdf-modal" role="dialog" aria-modal="true">
       <div class="pdf-modal-head">
-        <strong>{{ activePaper?.paper_pdf }}</strong>
-        <button class="icon-button small" title="关闭" @click="closePaperPdf">
+        <strong>{{ pdfModalTitle }}</strong>
+        <button class="icon-button small" title="关闭" @click="closePdfModal">
           <X :size="18" />
         </button>
       </div>
-      <iframe class="paper-pdf-frame" :src="paperUrl" title="真题原卷 PDF"></iframe>
+      <iframe class="paper-pdf-frame" :src="pdfModalUrl" :title="pdfModalTitle"></iframe>
     </div>
 
     <!-- ===== IMAGE LIGHTBOX ===== -->
     <Teleport to="body">
+      <div v-if="showImageNotice" class="exam-notice-modal" role="dialog" aria-modal="true">
+        <div class="exam-notice-card">
+          <div class="notice-mark">
+            <AlertTriangle :size="24" />
+          </div>
+          <div class="notice-copy">
+            <p class="eyebrow">提示</p>
+            <h3>图示题请以原卷为准</h3>
+            <p>
+              当前网页内嵌的示意图预览还在修复中，部分图可能显示不完整或不够清晰。遇到含图题目时，请点击右上角
+              <strong>原卷查看</strong>，以 PDF 原卷中的示意图为准。
+            </p>
+          </div>
+          <div class="notice-actions">
+            <button class="secondary-button" @click="dismissImageNotice">
+              <span>我知道了</span>
+            </button>
+            <button class="primary-button" @click="openPaperFromNotice">
+              <FileText :size="17" />
+              <span>打开原卷</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="zoomImage" class="image-lightbox" @click.self="zoomImage = null" @keydown.escape="zoomImage = null">
         <button class="lightbox-close" @click="zoomImage = null">
           <X :size="24" />
@@ -275,6 +324,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   ChevronRight,
@@ -286,6 +336,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Save,
   X,
 } from "@lucide/vue";
 import { api, type ExamPaper, type ExamQuestion } from "../api/client";
@@ -297,10 +348,19 @@ type ExamHistoryItem = {
   answered_count: number;
 };
 
+type ExamDraft = {
+  answers: Record<string, string>;
+  remaining_seconds: number;
+  has_started: boolean;
+  paused: boolean;
+  saved_at: string;
+};
+
 const papers = ref<ExamPaper[]>([]);
 const selectedYear = ref<number | null>(null);
 const examState = ref<"selecting" | "active">("selecting");
 const paperUrl = ref("");
+const answerModalUrl = ref("");
 const answerUrl = ref("");
 const answerLoading = ref(false);
 const error = ref("");
@@ -312,6 +372,8 @@ const remainingSeconds = ref(0);
 const selfScore = ref<number | null>(null);
 const answers = reactive<Record<string, string>>({});
 const zoomImage = ref<{ url: string; label: string } | null>(null);
+const showImageNotice = ref(false);
+const draftSavedAt = ref("");
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const activePaper = computed(() => papers.value.find((paper) => paper.year === selectedYear.value) ?? null);
@@ -328,6 +390,18 @@ const answeredCount = computed(() => activeQuestions.value.reduce((sum, question
   return sum + question.sub_questions.filter((sub) => String(answers[sub.id] ?? "").trim().length > 0).length;
 }, 0));
 const progressPercent = computed(() => totalAnswerSlots.value ? `${Math.round(answeredCount.value / totalAnswerSlots.value * 100)}%` : "0%");
+const pdfModalUrl = computed(() => paperUrl.value || answerModalUrl.value);
+const pdfModalTitle = computed(() => {
+  if (paperUrl.value) return activePaper.value?.paper_pdf ?? "真题原卷 PDF";
+  if (answerModalUrl.value) return activePaper.value?.answer_pdf ?? "试题答案 PDF";
+  return "PDF";
+});
+const draftSavedText = computed(() => {
+  if (!draftSavedAt.value) return "";
+  const date = new Date(draftSavedAt.value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `已暂存 ${date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
+});
 
 const timerText = computed(() => {
   const seconds = Math.max(remainingSeconds.value, 0);
@@ -359,7 +433,7 @@ function clearTimer() {
 function tick() {
   if (remainingSeconds.value <= 1) {
     remainingSeconds.value = 0;
-    submitExam();
+    submitExam(true);
     return;
   }
   remainingSeconds.value -= 1;
@@ -367,6 +441,10 @@ function tick() {
 
 function storageKey(year = selectedYear.value) {
   return year ? `comp-org-exam-draft-${year}` : "";
+}
+
+function noticeKey(year = selectedYear.value) {
+  return year ? `comp-org-exam-image-notice-${year}` : "";
 }
 
 function questionsBySection(sectionId: string): ExamQuestion[] {
@@ -391,12 +469,25 @@ function setAnswer(subId: string, value: string) {
 
 function restoreDraft() {
   Object.keys(answers).forEach((key) => delete answers[key]);
+  draftSavedAt.value = "";
   const key = storageKey();
   if (!key) return;
   const raw = localStorage.getItem(key);
   if (!raw) return;
   try {
-    Object.assign(answers, JSON.parse(raw) as Record<string, string>);
+    const parsed = JSON.parse(raw) as Partial<ExamDraft> | Record<string, string> | null;
+    if (parsed && typeof parsed === "object" && "answers" in parsed && parsed.answers) {
+      Object.assign(answers, parsed.answers);
+      remainingSeconds.value = typeof parsed.remaining_seconds === "number"
+        ? parsed.remaining_seconds
+        : remainingSeconds.value;
+      hasStarted.value = Boolean(parsed.has_started);
+      paused.value = Boolean(parsed.paused);
+      running.value = false;
+      draftSavedAt.value = parsed.saved_at ?? "";
+    } else {
+      Object.assign(answers, parsed as Record<string, string>);
+    }
   } catch {
     localStorage.removeItem(key);
   }
@@ -404,7 +495,35 @@ function restoreDraft() {
 
 function saveDraft() {
   const key = storageKey();
-  if (key) localStorage.setItem(key, JSON.stringify(answers));
+  if (!key) return;
+  const savedAt = new Date().toISOString();
+  const draft: ExamDraft = {
+    answers: { ...answers },
+    remaining_seconds: remainingSeconds.value,
+    has_started: hasStarted.value,
+    paused: paused.value || hasStarted.value,
+    saved_at: savedAt,
+  };
+  localStorage.setItem(key, JSON.stringify(draft));
+  draftSavedAt.value = savedAt;
+}
+
+function maybeShowImageNotice() {
+  if (!activePaper.value || !paperHasImages(activePaper.value)) return;
+  const key = noticeKey(activePaper.value.year);
+  if (key && localStorage.getItem(key) === "true") return;
+  showImageNotice.value = true;
+}
+
+function dismissImageNotice() {
+  const key = noticeKey();
+  if (key) localStorage.setItem(key, "true");
+  showImageNotice.value = false;
+}
+
+async function openPaperFromNotice() {
+  dismissImageNotice();
+  await openPaperPdf();
 }
 
 function enterExam(year: number) {
@@ -412,14 +531,16 @@ function enterExam(year: number) {
   examState.value = "active";
   resetExamState(false);
   restoreDraft();
-  closePaperPdf();
+  closePdfModal();
+  maybeShowImageNotice();
 }
 
 function exitToSelect() {
   clearTimer();
+  showImageNotice.value = false;
   examState.value = "selecting";
   selectedYear.value = null;
-  closePaperPdf();
+  closePdfModal();
   clearObjectUrl(answerUrl.value);
   answerUrl.value = "";
 }
@@ -428,7 +549,8 @@ async function selectPaper(year: number) {
   selectedYear.value = year;
   resetExamState(false);
   restoreDraft();
-  closePaperPdf();
+  closePdfModal();
+  maybeShowImageNotice();
 }
 
 function resetExamState(clearAnswers: boolean) {
@@ -445,6 +567,7 @@ function resetExamState(clearAnswers: boolean) {
     Object.keys(answers).forEach((key) => delete answers[key]);
     const key = storageKey();
     if (key) localStorage.removeItem(key);
+    draftSavedAt.value = "";
   }
 }
 
@@ -463,14 +586,19 @@ function pauseExam() {
   running.value = false;
   paused.value = true;
   clearTimer();
+  saveDraft();
 }
 
 function resetExam() {
   resetExamState(true);
 }
 
-function submitExam() {
+function submitExam(force = false) {
   if (!activePaper.value || submitted.value) return;
+  if (!force && (running.value || paused.value)) {
+    const ok = window.confirm("确定现在提前交卷吗？交卷后将停止计时，并进入自评与答案查看。");
+    if (!ok) return;
+  }
   saveDraft();
   clearTimer();
   running.value = false;
@@ -478,6 +606,20 @@ function submitExam() {
   submitted.value = true;
   hasStarted.value = true;
   saveHistory();
+}
+
+function saveAndExit() {
+  if (!activePaper.value) return;
+  saveDraft();
+  clearTimer();
+  running.value = false;
+  paused.value = hasStarted.value;
+  examState.value = "selecting";
+  selectedYear.value = null;
+  closePdfModal();
+  clearObjectUrl(answerUrl.value);
+  answerUrl.value = "";
+  showImageNotice.value = false;
 }
 
 function historyItems(): ExamHistoryItem[] {
@@ -519,15 +661,23 @@ async function openAnswer() {
 
 async function openPaperPdf() {
   if (!activePaper.value) return;
-  clearObjectUrl(paperUrl.value);
-  paperUrl.value = "";
+  closePdfModal();
   const blob = await api.examPaperPdf(activePaper.value.year, "paper");
   paperUrl.value = URL.createObjectURL(blob);
 }
 
-function closePaperPdf() {
+async function openAnswerPdf() {
+  if (!activePaper.value) return;
+  closePdfModal();
+  const blob = await api.examPaperPdf(activePaper.value.year, "answer");
+  answerModalUrl.value = URL.createObjectURL(blob);
+}
+
+function closePdfModal() {
   clearObjectUrl(paperUrl.value);
+  clearObjectUrl(answerModalUrl.value);
   paperUrl.value = "";
+  answerModalUrl.value = "";
 }
 
 async function downloadCurrentPaper() {
@@ -543,6 +693,18 @@ async function downloadCurrentPaper() {
 
 function jumpToSection(sectionId: string) {
   document.getElementById(`section-${sectionId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function jumpToNextUnanswered() {
+  const target = activeQuestions.value
+    .flatMap((question) => question.sub_questions)
+    .find((sub) => String(answers[sub.id] ?? "").trim().length === 0);
+  if (!target) return;
+  const block = document.getElementById(`exam-sub-${target.id}`);
+  block?.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => {
+    document.getElementById(`exam-answer-${target.id}`)?.focus();
+  }, 260);
 }
 
 function openImageZoom(url: string, label: string) {
@@ -576,13 +738,15 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearTimer();
-  clearObjectUrl(paperUrl.value);
+  closePdfModal();
   clearObjectUrl(answerUrl.value);
   document.removeEventListener("keydown", handleKeydown);
 });
 
 watch(activePaper, (paper) => {
-  remainingSeconds.value = (paper?.duration_minutes ?? 120) * 60;
+  if (!hasStarted.value && !draftSavedAt.value) {
+    remainingSeconds.value = (paper?.duration_minutes ?? 120) * 60;
+  }
 });
 </script>
 
@@ -1106,6 +1270,20 @@ watch(activePaper, (paper) => {
   transition: width 0.2s ease;
 }
 
+.draft-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid #dfe6da;
+  border-radius: 6px;
+  color: var(--teal);
+  background: #f8faf5;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .mini-map button {
   display: flex;
   justify-content: space-between;
@@ -1205,6 +1383,67 @@ watch(activePaper, (paper) => {
   background: #fff;
 }
 
+/* ===== NOTICE MODAL ===== */
+
+.exam-notice-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(24 34 32 / 42%);
+  backdrop-filter: blur(6px);
+}
+
+.exam-notice-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  width: min(560px, 100%);
+  padding: 20px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: 0 24px 70px rgb(36 48 47 / 22%);
+}
+
+.notice-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  color: #8b5b10;
+  background: #fff2cc;
+}
+
+.notice-copy h3 {
+  margin: 4px 0 8px;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.notice-copy p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.notice-copy strong {
+  color: var(--teal);
+}
+
+.notice-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 /* ===== IMAGE LIGHTBOX ===== */
 
 .image-lightbox {
@@ -1295,6 +1534,15 @@ watch(activePaper, (paper) => {
 
   .pdf-modal {
     inset: 10px;
+  }
+
+  .exam-notice-card {
+    grid-template-columns: 1fr;
+  }
+
+  .notice-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 </style>

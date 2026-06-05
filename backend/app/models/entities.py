@@ -169,3 +169,17 @@ class QuestionFeedback(Base):
     feedback_type: Mapped[Optional[str]] = mapped_column(Text)  # helpful/not_helpful/flag
     reason: Mapped[Optional[str]] = mapped_column(Text)  # flag reasons
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LabExamGeneration(Base):
+    __tablename__ = "lab_exam_generations"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    paper_json: Mapped[Optional[Any]] = mapped_column(JSONB)
+    answer_json: Mapped[Optional[Any]] = mapped_column(JSONB)
+    error_message: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

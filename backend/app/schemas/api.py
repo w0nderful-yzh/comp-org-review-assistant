@@ -284,6 +284,57 @@ class ExamPaperOut(BaseModel):
     questions: list[ExamQuestionOut] = Field(default_factory=list)
 
 
+class LabExamSectionOut(BaseModel):
+    id: str
+    title: str
+    score: int
+    description: str | None = None
+
+
+class LabExamQuestionOut(BaseModel):
+    id: str
+    section_id: str
+    number: str
+    title: str
+    score: float
+    stem: str
+    answer_type: Literal["single_choice", "text"] = "text"
+    options: list[dict[str, str]] = Field(default_factory=list)
+    answer: str | None = None
+    reference_answer: str | None = None
+    explanation: str | None = None
+
+
+class LabExamPaperOut(BaseModel):
+    id: str
+    title: str
+    subtitle: str | None = None
+    duration_minutes: int = 90
+    total_score: int = 100
+    source_file: str | None = None
+    format_reference: str | None = None
+    generated: bool = False
+    sections: list[LabExamSectionOut]
+    questions: list[LabExamQuestionOut]
+
+
+class LabExamGenerationOut(BaseModel):
+    id: int
+    status: Literal["pending", "running", "completed", "failed"]
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
+    paper: LabExamPaperOut | None = None
+
+
+class LabExamDashboardOut(BaseModel):
+    static_paper: LabExamPaperOut
+    latest_generation: LabExamGenerationOut | None = None
+    daily_remaining: int
+    ai_enabled: bool
+
+
 # ========== 认证相关 Schema ==========
 
 

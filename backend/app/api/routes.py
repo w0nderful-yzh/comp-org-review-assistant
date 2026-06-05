@@ -5,18 +5,19 @@ import random
 from datetime import datetime, timezone
 from typing import Union
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.core.limiter import limiter
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, PracticeSession, Question, QuestionFeedback, User, WrongQuestion
+from app.models.entities import AnswerRecord, Chapter, KnowledgeChunk, KnowledgePoint, LabExamGeneration, PracticeSession, Question, QuestionFeedback, User, WrongQuestion
 from app.schemas.api import (
     AiQuestionDraftCreate,
     AiQuestionDraftOut,
@@ -30,6 +31,9 @@ from app.schemas.api import (
     KnowledgeChunkOut,
     KnowledgePointOut,
     KnowledgeSearchOut,
+    LabExamDashboardOut,
+    LabExamGenerationOut,
+    LabExamPaperOut,
     PracticeCreate,
     PracticeHistoryItem,
     PracticeOut,
@@ -52,11 +56,14 @@ from app.schemas.api import (
 from app.core.logging import get_logger
 from app.services.ai_generation import AiGenerationError, generate_question_drafts
 from app.services.grading import grade_answer, public_answer
+from app.services.lab_exam_generation import generate_lab_exam_paper, load_static_lab_exam
 
 logger = get_logger(__name__)
 
 UNHELPFUL_ARCHIVE_THRESHOLD = 3
 DAILY_AI_LIMIT = 50
+DAILY_LAB_EXAM_LIMIT = 1
+APP_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 FLAG_SCORE_MAP = {
     "answer_error": (-5, 1),     # (quality_delta, error_count_delta)
@@ -630,6 +637,161 @@ def get_exam_paper_image(
         media_type=media_type,
         headers={"Cache-Control": "no-cache, must-revalidate"},
     )
+
+
+def ensure_lab_exam_generation_table(db: Session) -> None:
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS lab_exam_generations (
+          id BIGSERIAL PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          paper_json JSONB,
+          answer_json JSONB,
+          error_message TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          started_at TIMESTAMPTZ,
+          completed_at TIMESTAMPTZ
+        )
+    """))
+    db.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_lab_exam_generations_user_created
+        ON lab_exam_generations(user_id, created_at DESC)
+    """))
+    db.commit()
+
+
+def lab_exam_today_start() -> datetime:
+    now = datetime.now(APP_TIMEZONE)
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def lab_exam_generation_out(row: LabExamGeneration | None) -> LabExamGenerationOut | None:
+    if row is None:
+        return None
+    paper = None
+    if row.status == "completed" and row.paper_json:
+        paper = LabExamPaperOut.model_validate(row.paper_json)
+    return LabExamGenerationOut(
+        id=row.id,
+        status=row.status,
+        created_at=row.created_at,
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        error_message=row.error_message,
+        paper=paper,
+    )
+
+
+def latest_lab_exam_generation(db: Session, user_id: str) -> LabExamGeneration | None:
+    return db.scalar(
+        select(LabExamGeneration)
+        .where(LabExamGeneration.user_id == user_id)
+        .order_by(LabExamGeneration.created_at.desc(), LabExamGeneration.id.desc())
+        .limit(1)
+    )
+
+
+def today_lab_exam_generation(db: Session, user_id: str) -> LabExamGeneration | None:
+    return db.scalar(
+        select(LabExamGeneration)
+        .where(
+            LabExamGeneration.user_id == user_id,
+            LabExamGeneration.created_at >= lab_exam_today_start(),
+        )
+        .order_by(LabExamGeneration.created_at.desc(), LabExamGeneration.id.desc())
+        .limit(1)
+    )
+
+
+def run_lab_exam_generation(generation_id: int) -> None:
+    settings = get_settings()
+    with SessionLocal() as db:
+        ensure_lab_exam_generation_table(db)
+        row = db.get(LabExamGeneration, generation_id)
+        if row is None:
+            return
+        row.status = "running"
+        row.started_at = datetime.now(timezone.utc)
+        db.commit()
+        try:
+            paper = generate_lab_exam_paper(settings)
+            row.status = "completed"
+            row.paper_json = paper
+            row.answer_json = {
+                "questions": [
+                    {
+                        "id": question.get("id"),
+                        "answer": question.get("answer"),
+                        "reference_answer": question.get("reference_answer"),
+                        "explanation": question.get("explanation"),
+                    }
+                    for question in paper.get("questions", [])
+                ]
+            }
+            row.completed_at = datetime.now(timezone.utc)
+            row.error_message = None
+        except Exception as exc:
+            logger.exception("实验模拟卷生成失败: %s", exc)
+            row.status = "failed"
+            row.error_message = str(exc)
+            row.completed_at = datetime.now(timezone.utc)
+        db.commit()
+
+
+@router.get("/lab-exams", response_model=LabExamDashboardOut)
+def get_lab_exam_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> LabExamDashboardOut:
+    ensure_lab_exam_generation_table(db)
+    settings = get_settings()
+    user_id = str(current_user.id)
+    today_row = today_lab_exam_generation(db, user_id)
+    latest_row = today_row or latest_lab_exam_generation(db, user_id)
+    return LabExamDashboardOut(
+        static_paper=LabExamPaperOut.model_validate(load_static_lab_exam(settings)),
+        latest_generation=lab_exam_generation_out(latest_row),
+        daily_remaining=0 if today_row else DAILY_LAB_EXAM_LIMIT,
+        ai_enabled=bool(settings.ai_enabled and settings.ai_api_key),
+    )
+
+
+@router.post("/lab-exams/generations", response_model=LabExamGenerationOut)
+def create_lab_exam_generation(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> LabExamGenerationOut:
+    ensure_lab_exam_generation_table(db)
+    settings = get_settings()
+    if not settings.ai_enabled or not settings.ai_api_key:
+        raise HTTPException(status_code=503, detail="AI service is not configured")
+
+    user_id = str(current_user.id)
+    existing = today_lab_exam_generation(db, user_id)
+    if existing:
+        return lab_exam_generation_out(existing)  # type: ignore[return-value]
+
+    row = LabExamGeneration(user_id=user_id, status="pending")
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    background_tasks.add_task(run_lab_exam_generation, row.id)
+    return lab_exam_generation_out(row)  # type: ignore[return-value]
+
+
+@router.get("/lab-exams/generations/{generation_id}", response_model=LabExamGenerationOut)
+def get_lab_exam_generation(
+    generation_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> LabExamGenerationOut:
+    ensure_lab_exam_generation_table(db)
+    user_id = str(current_user.id)
+    row = db.get(LabExamGeneration, generation_id)
+    if not row or row.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Lab exam generation not found")
+    return lab_exam_generation_out(row)  # type: ignore[return-value]
 
 
 @router.get("/chapters/{chapter_id}/courseware-pdf")
@@ -1215,6 +1377,10 @@ def submit_practice_session(
     session = db.get(PracticeSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Practice session not found")
+    if session.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+    if session.submitted_at is not None:
+        raise HTTPException(status_code=400, detail="Practice session already submitted")
 
     answers_by_question = {answer.question_id: answer.user_answer for answer in payload.answers}
     records = db.scalars(select(AnswerRecord).where(AnswerRecord.session_id == session_id)).all()

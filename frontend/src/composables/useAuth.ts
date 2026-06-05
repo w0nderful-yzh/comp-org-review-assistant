@@ -11,8 +11,20 @@ interface AuthUser {
   created_at: string;
 }
 
+function readCachedUser(): AuthUser | null {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
+const user = ref<AuthUser | null>(readCachedUser());
 const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
-const user = ref<AuthUser | null>(JSON.parse(localStorage.getItem(USER_KEY) ?? "null"));
 
 export function useAuth() {
   const isAuthenticated = computed(() => !!token.value);

@@ -53,7 +53,9 @@ def generate_question_drafts(
         requested_types = random.sample(sorted(SUPPORTED_GENERATION_TYPES), k=min(3, len(SUPPORTED_GENERATION_TYPES)))
 
     prompt = build_generation_prompt(payload, chapter, chunks, requested_types)
-    response_payload = call_chat_completion(prompt, settings)
+    # 按题目数量动态计算超时：每题 30s + 基础 30s，最少不低于全局配置
+    per_question_seconds = max(settings.ai_request_timeout, 30.0 + 30.0 * payload.count)
+    response_payload = call_chat_completion(prompt, settings, timeout_seconds=per_question_seconds)
     raw_questions = extract_questions(response_payload)
     drafts = [
         normalize_question(raw, payload, chapter, chunks)
@@ -118,7 +120,11 @@ def build_generation_prompt(
 """.strip()
 
 
-def call_chat_completion(prompt: str, settings: Settings) -> dict[str, Any]:
+def call_chat_completion(
+    prompt: str,
+    settings: Settings,
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
     url = f"{settings.ai_base_url.rstrip('/')}/chat/completions"
     body = {
         "model": settings.ai_model,
@@ -129,8 +135,9 @@ def call_chat_completion(prompt: str, settings: Settings) -> dict[str, Any]:
         "temperature": 0.4,
         "response_format": {"type": "json_object"},
     }
+    timeout = timeout_seconds if timeout_seconds is not None else settings.ai_request_timeout
     try:
-        with httpx.Client(timeout=settings.ai_request_timeout) as client:
+        with httpx.Client(timeout=timeout) as client:
             response = client.post(
                 url,
                 headers={"Authorization": f"Bearer {settings.ai_api_key}"},

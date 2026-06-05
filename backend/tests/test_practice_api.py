@@ -1,19 +1,35 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
+from app.api.deps import get_current_user
 from app.core.database import SessionLocal
 from app.main import app
 from app.models.entities import AnswerRecord, Chapter, PracticeSession, Question, QuestionFeedback, WrongQuestion
 
 
+_current_test_user_id = "pytest-default"
+
+
+def set_test_user(user_id: str) -> None:
+    global _current_test_user_id
+    _current_test_user_id = user_id
+
+
+def current_test_user() -> SimpleNamespace:
+    return SimpleNamespace(id=_current_test_user_id)
+
+
+app.dependency_overrides[get_current_user] = current_test_user
 client = TestClient(app)
 
 
 def cleanup_test_data(chapter_id: int, user_id: str) -> None:
+    set_test_user(user_id)
     with SessionLocal() as db:
         session_ids = list(
             db.scalars(select(PracticeSession.id).where(PracticeSession.user_id == user_id)).all()
@@ -172,6 +188,7 @@ def seed_reading_group(chapter_id: int) -> tuple[int, int, int]:
 
 
 def create_session(chapter_id: int, user_id: str) -> int:
+    set_test_user(user_id)
     response = client.post(
         "/api/practice-sessions",
         json={
@@ -189,6 +206,7 @@ def create_session(chapter_id: int, user_id: str) -> int:
 
 
 def submit_answer(session_id: int, question_id: int, user_id: str, answer: str) -> dict:
+    set_test_user(user_id)
     response = client.post(
         f"/api/practice-sessions/{session_id}/submit",
         json={"user_id": user_id, "answers": [{"question_id": question_id, "user_answer": answer}]},
@@ -276,6 +294,36 @@ def test_practice_history_and_review_flow() -> None:
         assert review["results"][0]["correct_answer"] == "A"
     finally:
         cleanup_test_data(chapter_id, user_id)
+
+
+def test_submit_rejects_other_user_and_repeat_submit() -> None:
+    chapter_id = 911
+    owner_id = f"pytest-{uuid4()}"
+    other_id = f"pytest-{uuid4()}"
+    cleanup_test_data(chapter_id, owner_id)
+    cleanup_test_data(chapter_id, other_id)
+
+    try:
+        question_id = seed_test_question(chapter_id)
+        session_id = create_session(chapter_id, owner_id)
+
+        set_test_user(other_id)
+        forbidden_response = client.post(
+            f"/api/practice-sessions/{session_id}/submit",
+            json={"answers": [{"question_id": question_id, "user_answer": "A"}]},
+        )
+        assert forbidden_response.status_code == 404
+
+        submit_answer(session_id, question_id, owner_id, "A")
+
+        repeat_response = client.post(
+            f"/api/practice-sessions/{session_id}/submit",
+            json={"answers": [{"question_id": question_id, "user_answer": "A"}]},
+        )
+        assert repeat_response.status_code == 400
+    finally:
+        cleanup_test_data(chapter_id, owner_id)
+        cleanup_test_data(chapter_id, other_id)
 
 
 def test_unsubmitted_practice_review_hides_answers_and_stats_ignore_it() -> None:

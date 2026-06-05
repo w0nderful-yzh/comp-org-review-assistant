@@ -436,7 +436,7 @@ comp-org-review-assistant/
 如有问题或建议，请通过以下方式联系：
 
 - 提交 [Issue](https://github.com/your-username/comp-org-review-assistant/issues)
-- 发送邮件至：your-email@example.com
+- 发送邮件至：3353291703@qq.com
 
 ---
 

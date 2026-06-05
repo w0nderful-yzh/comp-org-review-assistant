@@ -1889,8 +1889,7 @@ button {
 }
 
 .footer-fact-swap {
-  opacity: 0;
-  animation: fact-fade 0.8s ease;
+  animation: fact-fade 0.8s ease forwards;
 }
 
 /* ═══════════════════════════════════════════════════════════
